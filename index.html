@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="only light">
+<meta name="darkreader-lock">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png">
+<title>Sua escala cabe na regra nova? Calculadora da escala 6x1</title>
+<meta name="description" content="Calculadora gratuita para PMEs: veja quem precisa mudar de escala com o fim da 6x1, quantas horas deixam de existir e três caminhos para se adaptar.">
+<link rel="canonical" href="https://capitalhumanointelligence.com/escala-6x1">
+<link rel="preload" href="fonts/dm-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/eb-garamond-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link href="css/rodape.css" rel="stylesheet">
+<link href="css/fontes.css" rel="stylesheet">
+<!-- Ícones: Font Awesome Free 6.4.0 (https://fontawesome.com), licença CC BY 4.0, em SVG no próprio HTML -->
+<link href="css/paginas.css" rel="stylesheet">
+<style>
+/* Calculadora da escala 6x1: desenho aprovado em 19/10/2026 (protótipo "Main", "Resultado" e "Celular").
+   Cores da marca: verde escuro e creme do site; terracota de texto escura (--go2) para passar de 4,5:1 nos fundos claros;
+   terracota clara só sobre o verde escuro. Números com algarismos de largura fixa. */
+:root{--e6-v:var(--g2);--e6-creme:var(--beige);--e6-bege:#F8F5EF;--e6-borda:var(--brd);--e6-borda2:#D9D2C4;--e6-terra:var(--go2);--e6-terra-cl:#F0B494;--e6-txt:#1C2B24;--e6-txt2:#3E4A44;--e6-sec:#5B6660;--e6-sec-v:#C9D6CD;}
+body{background:var(--e6-creme);}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+.faixa,.antes-sec,.calc{font-variant-numeric:tabular-nums;color:var(--e6-txt);}
+
+/* faixa verde do topo */
+.faixa{background:var(--e6-v);color:var(--e6-creme);}
+.faixa-in{max-width:1240px;margin:0 auto;padding:28px 32px 44px;}
+.selo{display:inline-flex;align-items:center;gap:8px;font-size:13px;padding:6px 12px;border-radius:999px;background:rgba(243,238,227,.1);color:#E7EEE9;}
+.selo-ponto{width:8px;height:8px;border-radius:50%;background:var(--e6-terra-cl);}
+.faixa-grade{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:32px;margin-top:22px;}
+.faixa-txt{flex:1 1 420px;min-width:0;}
+.faixa h1{font-family:'EB Garamond',serif;font-weight:500;font-size:clamp(36px,4.4vw,52px);line-height:1.05;letter-spacing:-.01em;color:var(--e6-creme);text-wrap:balance;}
+.faixa h1 em[data-destaque-claro]{font-style:italic!important;font-weight:500!important;color:var(--e6-terra-cl)!important;}
+.faixa-lead{margin-top:14px;font-size:17px;line-height:1.55;color:var(--e6-sec-v);max-width:520px;}
+.linha-tempo{flex:1 1 460px;min-width:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));}
+.linha-tempo li{padding-top:14px;border-top:2px solid rgba(243,238,227,.35);display:flex;flex-direction:column;padding-right:10px;}
+.linha-tempo .lt-hoje{border-top-color:var(--e6-creme);}
+.linha-tempo .lt-prox{border-top-color:var(--e6-terra-cl);}
+.lt-quando{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--e6-sec-v);}
+.lt-prox .lt-quando{color:var(--e6-terra-cl);}
+.lt-h{font-size:26px;font-weight:600;margin-top:4px;color:var(--e6-creme);}
+.lt-det{font-size:13px;color:var(--e6-sec-v);line-height:1.4;}
+
+/* cartões de abertura: "Você vai precisar de", "O que muda" e o aviso */
+.antes-sec{padding:28px 32px 4px;}
+.antes-in{max-width:1240px;margin:0 auto;}
+.antes-grade{display:grid;gap:16px;}
+@media(min-width:900px){.antes-grade{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.info-card{background:#fff;border-radius:18px;padding:22px 24px;display:grid;gap:10px;align-content:start;}
+.info-tit{font-family:'EB Garamond',serif;font-weight:500;font-size:24px;line-height:1.15;color:var(--e6-txt);text-wrap:balance;}
+.info-card p,.info-lista li{font-size:15px;line-height:1.6;color:var(--e6-txt2);}
+.info-card strong{color:var(--e6-txt);}
+.info-lista{list-style:none;display:grid;gap:8px;}
+.info-lista li{padding-left:18px;position:relative;}
+.info-lista li::before{content:'';position:absolute;left:2px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--e6-v);}
+.aviso{margin-top:16px;font-size:13px;line-height:1.6;color:var(--e6-sec);background:var(--e6-bege);border-radius:14px;padding:14px 18px;}
+.aviso strong{color:var(--e6-terra);}
+.aviso a{color:var(--e6-terra);font-weight:600;text-decoration:underline;text-underline-offset:3px;}
+
+/* área da calculadora */
+.calc{padding:28px 32px 72px;scroll-margin-top:90px;}
+.calc-in{max-width:1240px;margin:0 auto;}
+.calc-grid{display:grid;gap:28px;align-items:start;}
+.calc-grid[hidden]{display:none;}
+@media(min-width:1024px){.calc-grid{grid-template-columns:minmax(0,1fr) 340px;}}
+.app-card{background:#fff;border-radius:20px;box-shadow:0 1px 2px rgba(31,58,47,.06),0 12px 32px rgba(31,58,47,.08);min-width:0;overflow:hidden;}
+.card-topo{display:none;}
+.et-n{width:26px;height:26px;border-radius:50%;border:1.5px solid #8A847A;font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.et-nome{font-size:15px;}
+.passo-cab{padding:28px 28px 4px;}
+.passo h2{font-family:'EB Garamond',serif;font-weight:500;font-size:30px;line-height:1.15;color:var(--e6-txt);text-wrap:balance;}
+.passo-ex{margin-top:6px;font-size:15px;line-height:1.55;color:var(--e6-sec);}
+.form-calc{display:grid;}
+#passo-2 .form-calc{padding:22px 28px 0;}
+
+/* um grupo: linha do nome com atalhos e blocos bege em duas colunas */
+.funcao{border:none;margin:0;padding:22px 28px;min-width:0;}
+.funcao+.funcao{border-top:1px solid var(--e6-borda);}
+.g-cab{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:18px;}
+.g-rot{font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--e6-sec);margin-right:6px;}
+.g-cab .f-nome{flex:1 1 200px;min-width:0;font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;color:var(--e6-txt);border:none;border-bottom:1.5px solid var(--e6-borda2);padding:6px 2px;background:transparent;border-radius:0;}
+.g-cab .f-nome:focus{outline:2px solid var(--e6-v);outline-offset:2px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+.chip{height:44px;padding:0 14px;border-radius:999px;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;background:#fff;color:var(--e6-txt2);border:1px solid var(--e6-borda2);}
+.chip[aria-pressed=true]{background:#EFE3D9;color:#7E3415;border-color:#E2C9B6;}
+.g-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;}
+.bloco-b{background:var(--e6-bege);border-radius:14px;padding:16px 18px;min-width:0;display:block;}
+.bloco-b.largo,.g-grade .linha-discreta{grid-column:1/-1;}
+.bb-cab{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.bb-rot{font-size:13px;font-weight:600;color:var(--e6-txt2);line-height:1.35;}
+.bb-rot-l{display:flex;align-items:center;gap:6px;}
+.bb-total{font-size:13px;color:var(--e6-sec);white-space:nowrap;}
+.bb-ex{margin-top:10px;font-size:13px;line-height:1.5;color:var(--e6-sec);}
+/* número grande com menos e mais (o + preenchido em verde) */
+.num-ctl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;}
+.num-val{display:inline-flex;align-items:baseline;justify-content:center;gap:6px;min-width:0;flex:1;cursor:text;}
+.num-ctl .num{width:2.2ch;field-sizing:content;min-width:1.2ch;max-width:5ch;text-align:right;font-family:'DM Sans',sans-serif;font-size:40px;font-weight:600;line-height:1.1;color:var(--e6-txt);border:none;border-bottom:1.5px dashed transparent;background:transparent;padding:0;font-variant-numeric:tabular-nums;}
+.num-ctl .num:hover{border-bottom-color:var(--e6-borda2);}
+.num-ctl .num:focus{outline:2px solid var(--e6-v);outline-offset:4px;border-radius:6px;}
+.num-ctl .num::placeholder{color:#9A958C;}
+.num-suf{font-size:14px;color:var(--e6-sec);}
+.st-bt{width:44px;height:44px;flex-shrink:0;border-radius:12px;border:1px solid var(--e6-borda2);background:#fff;font-family:'DM Sans',sans-serif;font-size:22px;line-height:1;color:var(--e6-v);cursor:pointer;padding:0;}
+.st-bt.mais{border-color:var(--e6-v);background:var(--e6-v);color:var(--e6-creme);}
+.st-bt:hover{border-color:var(--e6-v);}
+/* dias em uma linha */
+.dias-sel{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:12px;}
+.dia-bt{height:44px;min-width:0;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;background:#fff;color:var(--e6-txt2);border:1px solid var(--e6-borda2);padding:0;}
+.dia-bt[aria-pressed=true]{background:var(--e6-v);color:var(--e6-creme);border-color:var(--e6-v);}
+/* horas: valor grande, menos e mais pequenos e régua de 20 a 60 */
+.horas-val{display:flex;align-items:center;gap:6px;}
+.horas-val .st-bt{width:36px;height:36px;font-size:18px;border-radius:10px;}
+.horas-val .num{width:2.6ch;font-size:28px;text-align:right;font-family:'DM Sans',sans-serif;font-weight:600;color:var(--e6-txt);border:none;background:transparent;padding:0;}
+.horas-val .num:focus{outline:2px solid var(--e6-v);outline-offset:3px;border-radius:6px;}
+.horas-val .num::placeholder{color:#9A958C;}
+.regua{width:100%;margin-top:12px;height:28px;accent-color:var(--e6-v);cursor:pointer;}
+.regua-esc{display:flex;justify-content:space-between;font-size:12px;color:var(--e6-sec);}
+.regua-esc .lim{color:var(--e6-terra);font-weight:600;}
+/* explicação no ícone "?" */
+.ajuda-bt{width:24px;height:24px;border-radius:50%;border:1px solid var(--e6-borda2);background:#fff;color:var(--e6-txt2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;line-height:1;cursor:pointer;padding:0;flex-shrink:0;position:relative;}
+.ajuda-bt::after{content:'';position:absolute;inset:-10px;}
+.ajuda-bt[aria-expanded=true]{background:var(--e6-v);border-color:var(--e6-v);color:var(--e6-creme);}
+/* linha discreta: salário e regime */
+.linha-discreta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px;padding:4px 2px 0;}
+.passo > .linha-discreta{padding:4px 28px 0;}
+.ld-rot{font-size:13px;font-weight:600;color:var(--e6-txt2);}
+.ld-obs{font-weight:400;color:var(--e6-sec);}
+.linha-discreta input{width:180px;font-family:'DM Sans',sans-serif;font-size:16px;padding:10px 14px;border-radius:10px;border:1px solid var(--e6-borda2);background:#fff;text-align:right;color:var(--e6-txt);}
+.linha-discreta select{max-width:100%;min-height:44px;font-family:'DM Sans',sans-serif;font-size:15px;padding:10px 12px;border-radius:10px;border:1px solid var(--e6-borda2);background:#fff;color:var(--e6-txt);}
+.linha-discreta .campo-erro{flex-basis:100%;}
+.campo-erro{font-size:13px;color:var(--e6-terra);font-weight:600;margin-top:6px;}
+.campo-erro:empty{display:none;}
+[aria-invalid=true]{border-color:var(--e6-terra)!important;}
+.dias-sel:has(+ input[aria-invalid=true]){outline:2px solid var(--e6-terra);outline-offset:4px;border-radius:10px;}
+.remover{margin-top:10px;}
+/* botões */
+.acoes{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;padding:18px 28px 28px;}
+.bv{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:15px 28px;border:none;border-radius:12px;background:var(--e6-v);color:var(--e6-creme);font-family:'DM Sans',sans-serif;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer;}
+.bv:hover{background:var(--g);}
+.bv:disabled{opacity:.6;cursor:default;}
+.bt-tracejado{min-height:48px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;color:var(--e6-v);background:transparent;border:1.5px dashed #8A847A;border-radius:12px;padding:12px 18px;cursor:pointer;}
+.link-acao{background:none;border:none;padding:6px 0;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;color:var(--e6-v);text-decoration:underline;text-underline-offset:4px;cursor:pointer;min-height:44px;}
+.dia-bt:focus-visible,.st-bt:focus-visible,.chip:focus-visible,.ajuda-bt:focus-visible,.bv:focus-visible,.bt-tracejado:focus-visible,.link-acao:focus-visible,.pvm-bt:focus-visible,.rec a:focus-visible,.regua:focus-visible{outline:3px solid var(--go);outline-offset:2px;}
+
+/* prévia ao vivo: painel verde à direita a partir de 1024 px */
+.previa{background:var(--e6-v);color:var(--e6-creme);border-radius:20px;padding:26px;box-shadow:0 12px 32px rgba(31,58,47,.18);min-width:0;}
+.pv-cab{display:flex;align-items:center;justify-content:space-between;}
+.pv-tit,.pv-sub{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--e6-sec-v);}
+.pv-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--e6-sec-v);}
+.pv-ponto{width:7px;height:7px;border-radius:50%;background:var(--e6-terra-cl);}
+.pv-vazia{margin-top:16px;font-size:15px;line-height:1.5;color:var(--e6-creme);}
+.pv-nome{font-family:'EB Garamond',serif;font-size:22px;margin-top:14px;overflow-wrap:anywhere;}
+.pv-nums{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px;}
+.pv-box{background:rgba(243,238,227,.07);border-radius:14px;padding:16px;display:flex;flex-direction:column;min-width:0;}
+.pv-n{font-size:44px;font-weight:600;line-height:1;}
+.pv-terra{color:var(--e6-terra-cl);}
+.pv-un{font-size:22px;}
+.pv-leg{font-size:13px;line-height:1.4;color:var(--e6-sec-v);margin-top:8px;}
+.pv-sub{margin-top:22px;}
+.pv-depois{margin-top:12px;font-size:13px;line-height:1.45;color:var(--e6-sec-v);}
+.pv-semana,.r-semana{display:grid;grid-template-columns:56px repeat(7,minmax(0,1fr));gap:5px;margin-top:10px;align-items:center;}
+.sem-rot{font-size:12px;color:var(--e6-sec-v);}
+.sem-d{height:30px;border-radius:7px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;}
+.pv-semana .sem-d.t{background:var(--e6-creme);color:var(--e6-v);}
+.pv-semana .sem-d.f{border:1px dashed rgba(243,238,227,.35);color:var(--e6-sec-v);}
+.sem-d.r{background:var(--e6-terra-cl);color:var(--e6-v);}
+.pv-barras{margin-top:22px;display:grid;gap:10px;}
+.pvb-lin{display:flex;justify-content:space-between;font-size:13px;color:var(--e6-sec-v);}
+.pvb-tri{height:8px;border-radius:4px;background:rgba(243,238,227,.12);margin-top:6px;}
+.pvb-val{display:block;height:8px;border-radius:4px;background:var(--e6-creme);}
+.pvb-val.depois{background:var(--e6-terra-cl);}
+.pv-leitura{margin-top:20px;padding-top:16px;border-top:1px solid rgba(243,238,227,.15);font-size:14px;line-height:1.5;color:#E7EEE9;}
+.previa.vazia .pv-corpo{display:none;}
+.previa:not(.vazia) .pv-vazia{display:none;}
+.pv-mob{display:none;}
+@media(min-width:1024px){.previa{position:sticky;top:96px;}}
+
+/* resultado */
+#passo-3{display:grid;gap:24px;}
+#passo-3[hidden]{display:none;}
+.rec{background:var(--e6-v);color:var(--e6-creme);border-radius:22px;padding:36px 40px;display:flex;flex-wrap:wrap;gap:28px 32px;align-items:center;justify-content:space-between;}
+.rec-corpo{flex:1 1 520px;min-width:0;}
+.rec-eti{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--e6-terra-cl);font-weight:600;}
+.rec-tit{margin-top:12px;font-family:'EB Garamond',serif;font-weight:500;font-size:clamp(32px,3.6vw,46px);line-height:1.08;color:var(--e6-creme);text-wrap:balance;}
+.rec-txt{margin-top:14px;font-size:17px;line-height:1.55;color:var(--e6-sec-v);max-width:600px;}
+.rec-botoes{flex:0 1 300px;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.rec-bt{display:block;text-align:center;font-size:16px;font-weight:600;color:var(--e6-v);background:var(--e6-creme);text-decoration:none;padding:16px 22px;border-radius:12px;}
+.rec-bt:hover{background:#fff;}
+.rec-bt2{display:block;text-align:center;font-size:15px;font-weight:600;color:var(--e6-creme);text-decoration:none;padding:14px 22px;border-radius:12px;border:1px solid rgba(243,238,227,.45);}
+.rec-bt2:hover{border-color:var(--e6-creme);}
+.res-resumo{display:grid;grid-template-columns:1fr;gap:16px;}
+@media(min-width:600px){.res-resumo{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media(min-width:1200px){.res-resumo{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.res-num-card{background:#fff;border-radius:18px;padding:22px;min-width:0;display:flex;flex-direction:column;}
+.res-num-val{font-size:clamp(30px,3.2vw,44px);font-weight:600;line-height:1;overflow-wrap:anywhere;}
+.res-num-val.terra{color:var(--e6-terra);}
+.res-num-leg{font-size:14px;line-height:1.4;color:var(--e6-sec);margin-top:10px;}
+.res-num-card.sem-valor .res-num-leg{margin-top:0;font-size:15px;font-weight:600;color:var(--e6-txt);}
+.r-card{background:#fff;border-radius:22px;padding:30px 32px;min-width:0;}
+.r-card h3{font-family:'EB Garamond',serif;font-weight:500;font-size:28px;line-height:1.15;color:var(--e6-txt);text-wrap:balance;}
+.r-cab{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px 12px;}
+.r-sub{font-size:14px;color:var(--e6-sec);}
+.caminhos-cards{display:grid;grid-template-columns:1fr;gap:16px;margin-top:22px;}
+@media(min-width:1200px){.caminhos-cards{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.cam-card{border:1px solid var(--e6-borda);border-radius:18px;padding:22px;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.cam-card.indicado{border:2px solid var(--e6-v);padding:21px;}
+.cam-tag{align-self:flex-start;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;border-radius:999px;color:var(--e6-txt2);background:#EEF0EC;}
+.cam-tag.ind{color:var(--e6-creme);background:var(--e6-v);}
+.cam-tag.trans,.cam-tag.rec,.cam-tag.nao{color:#7E3415;background:#EFE3D9;}
+.cam-tit{font-family:'DM Sans',sans-serif;font-size:18px;font-weight:600;color:var(--e6-txt);text-wrap:balance;}
+.cam-val{font-size:clamp(26px,2.6vw,36px);font-weight:600;line-height:1.15;overflow-wrap:anywhere;}
+.cam-val small{font-size:14px;font-weight:400;color:var(--e6-sec);}
+.cam-val.sem{font-size:16px;font-weight:600;color:var(--e6-txt2);}
+.cam-txt{font-size:14px;line-height:1.55;color:var(--e6-txt2);}
+.r-duas{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;}
+.r-graf{flex:999 1 560px;}
+.r-grupos{flex:1 1 340px;min-width:0;display:grid;gap:24px;}
+.proj-leg{display:flex;flex-wrap:wrap;gap:8px 20px;margin-top:10px;font-size:14px;color:var(--e6-txt2);}
+.proj-leg span{display:inline-flex;align-items:center;gap:8px;}
+.proj-leg i{display:inline-block;width:18px;height:3px;border-radius:2px;}
+.proj-svg{display:block;width:100%;height:auto;margin-top:14px;font-family:'DM Sans',sans-serif;}
+.proj-txt{margin-top:12px;font-size:15px;line-height:1.55;color:var(--e6-txt2);}
+.proj-txt strong{color:var(--e6-v);}
+.g-card h3{font-size:28px;}
+.r-semana{margin-top:18px;}
+.r-semana .sem-rot{color:var(--e6-sec);}
+.r-semana .sem-d.t{background:var(--e6-v);color:var(--e6-creme);}
+.r-semana .sem-d.f{border:1px dashed #8A847A;color:var(--e6-sec);}
+.g-nota{margin-top:14px;font-size:14px;line-height:1.55;color:var(--e6-txt2);}
+.g-barras{margin-top:18px;display:grid;gap:12px;}
+.gb-lin{display:flex;justify-content:space-between;font-size:14px;}
+.gb-lin span{color:var(--e6-sec);}
+.gb-tri{height:8px;border-radius:4px;background:#EEE9DF;margin-top:6px;}
+.gb-val{display:block;height:8px;border-radius:4px;background:var(--e6-v);}
+.gb-val.depois{background:var(--e6-terra);}
+.g-rodape{margin-top:18px;padding-top:16px;border-top:1px solid var(--e6-borda);font-size:14px;line-height:1.55;color:var(--e6-txt2);}
+.g-rodape p+p{margin-top:6px;}
+.r-detalhes{display:grid;gap:26px 36px;}
+@media(min-width:1200px){.r-detalhes{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.r-col{min-width:0;}
+.r-col h3{font-size:24px;margin-bottom:10px;}
+.r-col .res-txt,.r-col li{font-size:15px;line-height:1.6;color:var(--e6-txt2);}
+.r-col .res-txt+.res-txt,.r-col ul+.res-txt,.r-col .res-txt+ul,.r-col .cob+.cob,.r-col .res-txt+.cob,.r-col .cob+.res-txt{margin-top:10px;}
+.r-col ul{list-style:none;display:grid;gap:6px;}
+.r-col .etq,.cob-nome{font-weight:700;color:var(--e6-txt);}
+.cob-nome{font-size:14px;}
+.alerta-txt{color:var(--e6-txt);font-weight:600;}
+.frentes{list-style:none;counter-reset:fr;display:grid;gap:12px;margin-top:16px;}
+.frentes li{counter-increment:fr;position:relative;padding-left:42px;font-size:15px;line-height:1.55;color:var(--e6-txt2);min-height:30px;}
+.frentes li::before{content:counter(fr);position:absolute;left:0;top:-2px;width:30px;height:30px;border-radius:50%;background:var(--e6-v);color:var(--e6-creme);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.cta{background:var(--e6-v);border-radius:22px;padding:30px 32px;color:var(--e6-creme);}
+.cta h3{font-family:'EB Garamond',serif;font-weight:500;font-size:clamp(26px,3vw,32px);line-height:1.15;text-wrap:balance;}
+.cta p{margin:8px 0 18px;font-size:16px;line-height:1.55;color:var(--e6-sec-v);}
+.cta .bv{background:var(--e6-creme);color:var(--e6-v);}
+.cta .bv:hover{background:#fff;}
+#passo-3 .aviso{margin-top:0;background:transparent;padding:0;max-width:900px;}
+.pdf{border-top:1px solid var(--e6-borda);padding-top:20px;}
+.pdf-form{display:grid;gap:14px;margin-top:14px;max-width:560px;}
+.pdf-form[hidden]{display:none;}
+.pdf-form input[type=text],.pdf-form input[type=tel],.pdf-form input[type=email]{width:100%;min-height:52px;padding:12px 16px;border:1px solid var(--e6-borda2);border-radius:12px;font-size:17px;font-family:'DM Sans',sans-serif;background:#fff;color:var(--e6-txt);}
+.pdf-form input:focus{outline:2px solid var(--e6-v);outline-offset:1px;}
+.pdf-form .consent{font-size:13px;}
+.pdf-pronto{margin-top:14px;background:#fff;border-radius:16px;padding:20px 22px;max-width:560px;}
+.pdf-pronto p{font-size:15px;line-height:1.6;margin-bottom:14px;}
+.pdf-nota{margin-top:6px;font-size:15px;line-height:1.55;color:var(--e6-sec);}
+.voltar{display:flex;}
+.print-cab{display:none;}
+/* número animado e gráfico que se desenha */
+@keyframes e6-desenhar{to{stroke-dashoffset:0;}}
+@keyframes e6-aparecer{to{opacity:1;}}
+.proj-svg.anima polyline{animation:e6-desenhar .9s ease-out forwards;}
+.proj-svg.anima .fim{opacity:0;animation:e6-aparecer .3s ease-out .7s forwards;}
+@media(prefers-reduced-motion:reduce){
+  .proj-svg.anima polyline{animation:none;stroke-dashoffset:0!important;}
+  .proj-svg.anima .fim{animation:none;opacity:1;}
+}
+
+/* texto corrido justificado, com hifenização controlada (padrão do site) */
+.info-card p,.aviso,.res-txt,.res-premissa,.rec-txt,.cam-txt,.g-nota,.g-rodape p,.proj-txt,.cta p,.pdf-pronto p,.pv-leitura,.bb-ex,.frentes li,.res-chave{text-wrap:pretty;}@media(min-width:600px){/* texto corrido justificado, com hifenização controlada (padrão do site) */
+.info-card p,.aviso,.res-txt,.res-premissa,.rec-txt,.cam-txt,.g-nota,.g-rodape p,.proj-txt,.cta p,.pdf-pronto p,.pv-leitura,.bb-ex,.frentes li,.res-chave{text-align:justify;hyphens:auto;-webkit-hyphens:auto;hyphenate-limit-chars:10 4 4;-webkit-hyphenate-limit-before:4;-webkit-hyphenate-limit-after:4;}}
+
+/* tablet e celular */
+@media(max-width:1023px){
+  .calc{padding-bottom:120px;}
+  /* prévia vira barra fixa no rodapé, com o botão de continuar */
+  .previa{position:fixed;left:12px;right:12px;bottom:14px;z-index:900;border-radius:16px;padding:12px 14px;box-shadow:0 10px 28px rgba(31,58,47,.3);}
+  .previa .pv-cab,.previa .pv-vazia,.previa .pv-corpo{display:none!important;}
+  .previa .pv-mob{display:flex;align-items:center;gap:14px;}
+  .previa.vazia .pvm-item{display:none;}
+  .previa.vazia .pv-mob::before{content:'Preencha os campos para ver a prévia';flex:1;font-size:13px;color:var(--e6-sec-v);}
+  .previa.escondida{display:none;}
+  .pvm-item{display:flex;flex-direction:column;min-width:0;}
+  .pvm-item+.pvm-item{margin-left:2px;}
+  .pvm-n{font-size:22px;font-weight:600;line-height:1;}
+  .pvm-leg{font-size:12px;color:var(--e6-sec-v);margin-top:3px;white-space:nowrap;}
+  .pvm-bt{margin-left:auto;height:48px;padding:0 18px;border-radius:12px;border:none;background:var(--e6-creme);color:var(--e6-v);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;flex-shrink:0;}
+}
+@media(max-width:767px){
+  .faixa-in{padding:20px 16px 30px;}
+  .faixa-grade{gap:24px;margin-top:16px;}
+  .faixa-lead{font-size:16px;}
+  .linha-tempo{flex-basis:100%;}
+  .lt-h{font-size:22px;}
+  .lt-det{font-size:12px;}
+  .antes-sec{padding:20px 12px 0;}
+  .info-card{padding:18px;}
+  .calc{padding:16px 8px 120px;}
+  .app-card{border-radius:18px;box-shadow:0 8px 24px rgba(31,58,47,.08);}
+  /* topo verde do cartão com a barra das 3 etapas, como no protótipo do celular */
+  .card-topo{display:block;background:var(--e6-v);color:var(--e6-creme);padding:18px 20px 20px;}
+  .ct-barra{display:flex;gap:6px;}
+  .ct-barra span{flex:1;height:4px;border-radius:2px;background:rgba(243,238,227,.25);}
+  .ct-barra span.on{background:var(--e6-terra-cl);}
+  .ct-passo{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--e6-sec-v);margin-top:10px;}
+  .ct-tit{margin-top:6px;font-family:'EB Garamond',serif;font-weight:500;font-size:28px;line-height:1.1;}
+  .passo-cab h2{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;}
+  .passo-cab{padding:16px 16px 0;}
+  .passo-ex{margin-top:0;font-size:14px;}
+  .funcao{padding:16px 12px;}
+  #passo-2 .form-calc{padding:16px 12px 0;}
+  .g-grade{grid-template-columns:1fr;gap:12px;}
+  .bloco-b{padding:14px 10px;}
+  .dias-sel{gap:3px;}
+  .dia-bt{font-size:13px;}
+  .num-ctl .num{font-size:36px;}
+  .st-bt{width:48px;height:48px;}
+  .horas-val .st-bt{width:44px;height:44px;}
+  .linha-discreta input{width:100%;}
+  .passo > .linha-discreta{padding:4px 16px 0;}
+  .acoes{padding:16px 16px 22px;}
+  .acoes .bv,.acoes .bt-tracejado{width:100%;}
+  #passo-2 .acoes{flex-direction:column-reverse;align-items:stretch;}
+  .rec{padding:26px 22px;border-radius:20px;}
+  .rec-botoes{flex-basis:100%;}
+  .rec-txt{font-size:16px;}
+  .res-resumo{gap:10px;}
+  .res-num-card{padding:16px;border-radius:16px;}
+  .res-num-val{font-size:26px;}
+  .r-card{padding:22px 18px;border-radius:20px;}
+  .r-card h3{font-size:24px;}
+  .cta{padding:24px 20px;}
+  .cta .bv{width:100%;}
+}
+
+/* PDF: só o resultado, na ordem da tela, sem animação */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  body{background:#fff!important;}
+  nav,footer,.faixa,.antes-sec,.calc-grid,.previa,.pdf,.voltar,.rec-botoes,.cta .bv,.ck-aviso,.ck-pref,.ck-pref-solo{display:none!important;}
+  .calc{padding:0!important;}
+  #passo-3{display:grid!important;gap:14px!important;}
+  .print-cab{display:flex!important;align-items:center;gap:12px;border-bottom:2px solid #223A2E;padding-bottom:10px;}
+  .print-cab img{width:44px;height:44px;}
+  .print-cab strong{font-family:'EB Garamond',serif;font-size:20px;color:#223A2E;}
+  .print-cab span{font-size:12px;color:#5B6660;display:block;}
+  .rec{padding:22px 26px!important;}
+  .rec-tit{font-size:30px!important;}
+  .res-resumo{grid-template-columns:repeat(4,minmax(0,1fr))!important;}
+  .res-num-card,.r-card,.cam-card{border:1px solid #E4DED0!important;}
+  .res-num-val{font-size:26px!important;}
+  .caminhos-cards{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  .cam-card.indicado{border:2px solid #223A2E!important;}
+  .r-duas{display:block!important;}
+  .r-graf,.r-grupos{margin-bottom:14px;}
+  .r-grupos{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .r-detalhes{grid-template-columns:repeat(3,minmax(0,1fr))!important;}
+  .rec,.res-num-card,.cam-card,.r-graf,.g-card,.r-col,.frentes li,.cta{break-inside:avoid;page-break-inside:avoid;}
+  .r-card h3{break-after:avoid;page-break-after:avoid;}
+  .cta{background:#fff!important;color:#1C2B24!important;border:1px solid #223A2E;}
+  .cta p{color:#1C2B24!important;margin-bottom:0;}
+  .proj-svg polyline{animation:none!important;stroke-dashoffset:0!important;}
+  .proj-svg .fim{animation:none!important;opacity:1!important;}
+}
+
+/* Telas grandes (18/10/2026): corpo de texto com pelo menos 16 px a partir de 1280 px, só na tela (a impressão fica como está) */
+@media screen{
+  .info-card p,.info-lista li,p.aviso,.passo-ex,.bb-ex,.ajuda-pop,.res-txt,.r-col li,.cam-txt,.g-nota,.g-rodape,.proj-txt,.frentes li,.cta p,label.consent span,.rec-txt,.pv-leitura,.pdf-pronto p{font-size:16px!important;}
+}
+
+/* abas do formulário (antes .etapas) e do resultado; régua com as duas marcas; premissa (19/10/2026) */
+.abas{list-style:none;display:flex;border-bottom:1px solid var(--e6-borda);}
+.abas li{flex:1;min-width:0;padding:18px 24px 15px;display:flex;align-items:center;gap:10px;color:var(--e6-sec);border-bottom:3px solid transparent;}
+.abas li.atual{border-bottom-color:var(--e6-v);color:var(--e6-txt);}
+.abas li.atual .et-n,.abas li.feito .et-n{background:var(--e6-v);border-color:var(--e6-v);color:var(--e6-creme);}
+.abas li.atual .et-nome{font-weight:600;}
+.res-abas{display:flex;background:#fff;border-radius:18px;box-shadow:0 1px 2px rgba(31,58,47,.06),0 8px 24px rgba(31,58,47,.06);overflow:hidden;}
+.res-aba{flex:1;min-width:0;min-height:56px;display:flex;align-items:center;gap:10px;padding:14px 24px 11px;background:#fff;border:none;border-bottom:3px solid transparent;font-family:'DM Sans',sans-serif;font-size:16px;color:var(--e6-sec);cursor:pointer;text-align:left;}
+.res-aba[aria-selected=true]{border-bottom-color:var(--e6-v);color:var(--e6-txt);font-weight:600;}
+.res-aba[aria-selected=true] .et-n{background:var(--e6-v);border-color:var(--e6-v);color:var(--e6-creme);}
+.res-aba:focus-visible{outline:3px solid var(--go);outline-offset:-3px;}
+.res-linha{font-size:15px;font-weight:600;color:var(--e6-txt);}
+.res-premissa{margin-top:-14px;font-size:14px;line-height:1.55;color:var(--e6-sec);max-width:900px;}
+.etapa-pane{display:grid;gap:24px;}
+.etapa-pane[hidden]{display:none;}
+.pane-tit{display:none;}
+.r-grupos.sozinho{flex-basis:100%;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));}
+.regua-caixa{position:relative;}
+.regua-marca{position:absolute;top:24px;width:2px;height:8px;border-radius:1px;background:var(--e6-terra);pointer-events:none;}
+.regua-marca.m42{left:calc(8px + (100% - 16px) * .55 - 1px);}
+.regua-marca.m40{left:calc(8px + (100% - 16px) * .5 - 1px);}
+@media(max-width:767px){
+  .abas{display:none;}
+  .res-aba{padding:12px 14px 9px;font-size:15px;}
+  .res-premissa{margin-top:-10px;}
+  .regua-esc{flex-wrap:wrap;row-gap:2px;}
+  .regua-esc .lim{order:3;flex-basis:100%;text-align:center;}
+}
+@media print{
+  .res-abas{display:none!important;}
+  .etapa-pane,.etapa-pane[hidden]{display:grid!important;gap:14px!important;}
+  .etapa-pane+.etapa-pane{break-before:page;page-break-before:always;}
+  .pane-tit{display:block!important;font-family:'EB Garamond',serif;font-size:22px;font-weight:600;color:#223A2E;}
+  .r-grupos.sozinho{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+}
+@media screen{.res-premissa,.r-sub{font-size:16px!important;}}
+
+/* Linguagem simples (19/10/2026): "Como funciona", orientação por campo, horários de abrir e fechar e respostas rápidas */
+.como-sec{padding:28px 32px 4px;}
+.como-tit{font-family:'EB Garamond',serif;font-weight:500;font-size:28px;line-height:1.15;color:var(--e6-txt);text-wrap:balance;}
+.como-passos{list-style:none;display:grid;gap:14px;margin-top:16px;}
+@media(min-width:900px){.como-passos{grid-template-columns:repeat(3,minmax(0,1fr));}}
+.como-passos li{background:#fff;border-radius:18px;padding:20px 22px;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:12px;row-gap:10px;align-items:center;}
+.como-ico{color:var(--e6-v);display:flex;}
+.como-n{justify-self:end;width:28px;height:28px;border-radius:50%;background:var(--e6-v);color:var(--e6-creme);font-size:13px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;}
+.como-passos p{grid-column:1/-1;font-size:16px;line-height:1.5;color:var(--e6-txt);}
+.como-mao{margin-top:14px;font-size:15px;font-weight:600;color:var(--e6-txt);}
+.lei{margin-top:10px;}
+.lei summary{display:inline-flex;align-items:center;min-height:44px;font-size:15px;font-weight:600;color:var(--e6-v);text-decoration:underline;text-underline-offset:4px;cursor:pointer;list-style:none;}
+.lei summary::-webkit-details-marker{display:none;}
+.lei summary::after{content:'+';margin-left:8px;font-size:18px;text-decoration:none;display:inline-block;}
+.lei[open] summary::after{content:'−';}
+.lei summary:focus-visible{outline:3px solid var(--go);outline-offset:2px;border-radius:4px;}
+.lei-corpo{background:#fff;border-radius:18px;padding:20px 22px;display:grid;gap:12px;margin-top:6px;}
+.lei-corpo .aviso{margin-top:0;}
+.lei-fim .info-lista{margin-top:12px;}
+.lei-fim .info-lista li{font-size:15px;line-height:1.6;color:var(--e6-txt2);}
+/* orientação do campo, em texto pequeno logo abaixo dele */
+.orienta{margin-top:8px;font-size:14px;line-height:1.5;color:var(--e6-txt2);background:#fff;border-radius:10px;padding:8px 12px;}
+.linha-discreta .orienta{flex-basis:100%;margin-top:0;}
+.g-cab .orienta{flex-basis:100%;margin-top:0;}
+.g-cab .ajuda-bt{margin-left:-4px;}
+.passo > .linha-discreta .orienta{background:var(--e6-bege);}
+/* passo 2: horários */
+.horarios{padding:0;display:grid;gap:10px;}
+.hor-grupo{display:grid;gap:10px;}
+.hor-grupo[hidden]{display:none;}
+.hor-linha{background:var(--e6-bege);border-radius:14px;padding:12px 16px;display:grid;grid-template-columns:minmax(120px,1fr) auto auto auto;align-items:center;gap:8px 14px;}
+.hor-nome{font-size:15px;font-weight:600;color:var(--e6-txt);}
+.hor-campo{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--e6-sec);}
+.hor-campo input{min-height:44px;font-family:'DM Sans',sans-serif;font-size:16px;padding:6px 10px;border:1px solid var(--e6-borda2);border-radius:10px;background:#fff;color:var(--e6-txt);font-variant-numeric:tabular-nums;}
+.hor-campo input:disabled{opacity:.45;}
+.hor-x{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:var(--e6-txt2);cursor:pointer;}
+.hor-x input{width:20px;height:20px;accent-color:var(--e6-v);}
+.hor-erro{grid-column:1/-1;font-size:13px;font-weight:600;color:var(--e6-terra);}
+.hor-erro:empty{display:none;}
+.hor-linha.com-erro{outline:2px solid var(--e6-terra);outline-offset:-2px;}
+.hor-alternar{justify-self:start;}
+.hor-almoco{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;}
+.hor-dur select{min-height:44px;font-family:'DM Sans',sans-serif;font-size:15px;padding:8px 10px;border:1px solid var(--e6-borda2);border-radius:10px;background:#fff;color:var(--e6-txt);}
+.hor-total{font-size:17px;font-weight:600;color:var(--e6-txt);background:#fff;border:1px solid var(--e6-borda);border-radius:12px;padding:12px 16px;}
+/* respostas rápidas */
+.respostas h3{font-family:'EB Garamond',serif;font-weight:500;font-size:28px;line-height:1.15;color:var(--e6-txt);}
+.resp-lista{display:grid;gap:16px;margin-top:16px;}
+@media(min-width:1024px){.resp-lista{grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 28px;}}
+.resp-item{border-top:1px solid var(--e6-borda);padding-top:14px;}
+.resp-item dt{font-size:17px;font-weight:700;color:var(--e6-txt);}
+.resp-item dd{margin:6px 0 0;font-size:16px;line-height:1.55;color:var(--e6-txt2);}
+.det-tit{font-family:'EB Garamond',serif;font-weight:500;font-size:28px;line-height:1.15;color:var(--e6-txt);margin-top:8px;}
+.abas-intro{margin-top:-14px;font-size:16px;color:var(--e6-txt2);}
+@media(max-width:767px){
+  .como-sec{padding:20px 12px 0;}
+  .como-passos li{padding:16px 18px;}
+  .horarios{padding:0;}
+  .hor-linha{grid-template-columns:1fr 1fr;padding:12px;}
+  .hor-nome{grid-column:1/-1;}
+  .hor-campo{flex-direction:column;align-items:flex-start;gap:2px;}
+  .hor-campo input{width:100%;}
+  .hor-x{grid-column:1/-1;}
+  .respostas h3,.det-tit{font-size:24px;}
+  .abas-intro{margin-top:-10px;}
+}
+@media print{
+  .como-sec,.lei{display:none!important;}
+  .respostas{border:1px solid #E4DED0!important;break-inside:avoid;page-break-inside:avoid;}
+  .resp-lista{grid-template-columns:repeat(2,minmax(0,1fr))!important;}
+  .lei-fim{break-inside:avoid;page-break-inside:avoid;}
+}
+@media screen{.como-mao,.resp-item dd,.res-linha{font-size:16px!important;}}
+
+/* convenção coletiva e as 8h24 por dia em dez. 2026 (20/10/2026) */
+.res-chave{margin:0 0 18px;padding:14px 18px;border-left:4px solid var(--e6-terra,#BC5B2E);background:#fff;border-radius:0 10px 10px 0;font-size:16px;line-height:1.55;font-weight:600;color:var(--e6-txt,#1F1F1D);}
+.conv{border:none;margin:4px 0 0;padding:14px 16px;background:var(--e6-bege);border-radius:14px;min-width:0;}
+.conv-leg{padding:0;float:left;width:100%;}
+.conv-op{clear:both;display:flex;flex-wrap:wrap;gap:8px;padding-top:10px;}
+.conv-bt{position:relative;display:inline-flex;}
+.conv-bt input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;}
+.conv-bt span{display:inline-flex;align-items:center;min-height:44px;padding:0 18px;border-radius:999px;border:1px solid var(--e6-borda2);background:#fff;font-size:15px;font-weight:600;color:var(--e6-txt2);}
+.conv-bt input:checked+span{background:var(--e6-v);border-color:var(--e6-v);color:var(--e6-creme);}
+.conv-bt input:focus-visible+span{outline:3px solid var(--go);outline-offset:2px;}
+.cen-nota{font-size:15px;font-weight:600;color:var(--e6-txt);}
+.cenarios .res-txt{margin-top:8px;}
+.cen-grade{display:grid;gap:16px;margin-top:16px;}
+@media(min-width:900px){.cen-grade{grid-template-columns:repeat(2,minmax(0,1fr));}}
+.cen-col{border:1px solid var(--e6-borda);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:10px;}
+.cen-col.principal{border:2px solid var(--e6-v);padding:19px;}
+.cen-col ul{list-style:none;display:grid;gap:6px;}
+.cen-col li{font-size:15px;line-height:1.55;color:var(--e6-txt2);}
+@media print{.cenarios,.cen-col{break-inside:avoid;page-break-inside:avoid;}.cen-grade{grid-template-columns:repeat(2,minmax(0,1fr))!important;}}
+@media screen{.cen-col li,.cen-nota{font-size:16px!important;}}
+
+.lt-nota{flex-basis:100%;font-size:14px;color:var(--e6-sec-v);margin-top:-18px;}
+.regua-nota{margin-top:6px;font-size:13px;color:var(--e6-terra);font-weight:600;}
+.conv .bb-rot{font-size:16px;}
+@media(max-width:767px){.lt-nota{margin-top:-12px;}}
+</style>
+</head>
+<body>
+
+<nav id="nb">
+  <a href="https://capitalhumanointelligence.com/escala-6x1" class="nl"><img src="img/logo-128.png" width="128" height="128" alt="Capital Humano Intelligence"><span class="nl-nome"><span>Capital Humano</span> <span>Intelligence</span></span></a>
+  <div class="nr">
+    <a href="https://capitalhumanointelligence.com/escala-6x1" target="_blank" rel="noopener" class="bnav">Ver no site</a>
+  </div>
+</nav>
+
+<section class="faixa" aria-labelledby="titulo-calc">
+  <div class="faixa-in">
+    <p class="selo"><span class="selo-ponto" aria-hidden="true"></span>Atualizada com a emenda promulgada em 16/10/2026</p>
+    <div class="faixa-grade">
+      <div class="faixa-txt">
+        <h1 id="titulo-calc">Sua escala cabe <em data-destaque-claro>na&nbsp;regra&nbsp;nova?</em></h1>
+        <p class="faixa-lead">Informe a equipe e o horário. Em 3 minutos você vê quem é afetado, quantas horas deixam de existir e o caminho mais barato para se adaptar.</p>
+      </div>
+      <ol class="linha-tempo" aria-label="Etapas da regra nova">
+        <li class="lt-hoje"><span class="lt-quando">Hoje</span><span class="lt-h">44&nbsp;h</span><span class="lt-det">1 folga por semana</span></li>
+        <li class="lt-prox"><span class="lt-quando">Dez. 2026</span><span class="lt-h">40&nbsp;h</span><span class="lt-det">2 folgas · faltam <span id="contagem-dias">57</span>&nbsp;dias</span></li>
+        <li class="lt-fim"><span class="lt-quando">Dez. 2027</span><span class="lt-h">40&nbsp;h</span><span class="lt-det">salário mantido</span></li>
+      </ol>
+      <p class="lt-nota">Dez. 2026: 8&nbsp;h por dia (40&nbsp;h). Até 42&nbsp;h só se a convenção permitir 8h24.</p>
+    </div>
+  </div>
+</section>
+
+<section class="como-sec" aria-labelledby="como-tit">
+  <div class="antes-in">
+    <h2 class="como-tit" id="como-tit">Como funciona</h2>
+    <ol class="como-passos">
+      <li><span class="como-ico"><svg class="ico-tr" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7"/><path d="M18 14.3c2 .8 3.5 2.8 3.5 5.7"/></svg></span><span class="como-n" aria-hidden="true">1</span><p>Separe a equipe em grupos: quem trabalha nos mesmos dias e com as mesmas horas fica junto.</p></li>
+      <li><span class="como-ico"><svg class="ico-tr" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="como-n" aria-hidden="true">2</span><p>Diga que horas a empresa abre e fecha.</p></li>
+      <li><span class="como-ico"><svg class="ico-tr" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg></span><span class="como-n" aria-hidden="true">3</span><p>Veja se precisa contratar, quantas pessoas e quanto custa cada opção.</p></li>
+    </ol>
+    <p class="como-mao">Tenha em mãos as horas de contrato de cada pessoa.</p>
+    <details class="lei">
+      <summary>Entenda o que muda na lei</summary>
+      <div class="lei-corpo">
+        <h3 class="info-tit">O que muda</h3>
+        <ul class="info-lista">
+          <li>A emenda que acaba com a escala 6x1 foi promulgada e publicada no Diário Oficial da União em 16/10/2026.</li>
+          <li>A partir de 16/12/2026: escala 5x2, com dois dias de descanso por semana e até 8&nbsp;horas por dia (40&nbsp;horas em 5&nbsp;dias). Até 42&nbsp;horas semanais, cerca de 8h24 por dia, só se a convenção ou acordo coletivo da categoria permitir.</li>
+          <li>A partir de 16/12/2027: até 40&nbsp;horas semanais para todos.</li>
+          <li>Sem redução de salário.</li>
+          <li>Com convenção ou acordo coletivo, a escala pode variar dentro do mês, com pelo menos 1 descanso por semana e média de 2 por semana no mês.</li>
+        </ul>
+        <p class="aviso"><strong>Importante:</strong> é uma estimativa. Não substitui a orientação do seu contador nem a convenção coletiva da sua categoria. As regras de transição ainda podem ser detalhadas. Escalas de revezamento, como a 12x36, seguem regras próprias e ainda dependem de regulamentação. Se a sua empresa usa uma delas, <a href="https://wa.me/5577981640599?text=Ol%C3%A1%2C%20Daniela%20Matos!%20Minha%20empresa%20usa%20uma%20escala%20de%20revezamento%20e%20quero%20uma%20an%C3%A1lise%20espec%C3%ADfica%20sobre%20o%20fim%20da%206x1." target="_blank" rel="noopener" data-evento="escala6x1_revezamento_whatsapp">fale com a gente</a> para uma análise específica. Uma lei complementar poderá prever medidas de transição para MEI e pequenas empresas, condicionadas à manutenção de empregos. Até lá, vale a regra geral.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section class="calc" id="calculadora" aria-label="Calculadora da escala">
+  <div class="calc-in">
+    <div class="calc-grid" id="calc-form">
+    <div class="app-card">
+      <div class="card-topo" aria-hidden="true">
+        <div class="ct-barra"><span data-seg="1"></span><span data-seg="2"></span><span data-seg="3"></span></div>
+        <p class="ct-passo" id="ct-passo">Passo 1 de 3 · Equipe</p>
+        <p class="ct-tit" id="ct-tit">Quem trabalha na sua empresa</p>
+      </div>
+      <ol class="abas" aria-label="Etapas da calculadora">
+        <li data-passo="1" class="atual" aria-current="step"><span class="et-n">1</span><span class="et-nome">Equipe</span></li>
+        <li data-passo="2"><span class="et-n">2</span><span class="et-nome">Atendimento</span></li>
+        <li data-passo="3"><span class="et-n">3</span><span class="et-nome">Resultado</span></li>
+      </ol>
+
+      <!-- PASSO 1: EQUIPE -->
+      <div class="passo" id="passo-1">
+        <div class="passo-cab">
+          <h2>Quem trabalha na sua empresa</h2>
+          <p class="passo-ex">Junte num grupo quem trabalha nos mesmos dias e com as mesmas horas. Ex.: 4 vendedoras de segunda a sábado, 44&nbsp;horas por semana.</p>
+        </div>
+        <div class="form-calc" id="funcoes"></div>
+        <div class="linha-discreta campo">
+          <span class="bb-rot-l"><label class="ld-rot" for="emp-regime">Regime tributário <span class="ld-obs">(opcional, para estimar os encargos)</span></label><button type="button" class="ajuda-bt" data-controle aria-expanded="false" aria-controls="emp-regime-ori" aria-label="Como preencher: Regime tributário">?</button></span>
+          <select id="emp-regime" aria-describedby="emp-regime-ori">
+            <option value="">Selecione</option>
+            <option value="simples">Simples Nacional (exceto Anexo IV)</option>
+            <option value="geral">Simples Nacional Anexo IV, Lucro Presumido ou Lucro Real</option>
+            <option value="naosei">Não sei</option>
+          </select>
+          <p class="orienta" id="emp-regime-ori" hidden>Pergunte ao seu contador. Se não souber, escolha Não sei.</p>
+        </div>
+        <div class="acoes">
+          <button type="button" class="bt-tracejado" id="btn-adicionar" data-contorno-aprovado>+ Adicionar outro grupo</button>
+          <button type="button" class="bv" id="btn-passo1">Continuar para o horário</button>
+        </div>
+      </div>
+
+      <!-- PASSO 2: FUNCIONAMENTO -->
+      <div class="passo" id="passo-2" hidden>
+        <div class="passo-cab">
+          <h2>Que horas a empresa abre e fecha?</h2>
+          <p class="passo-ex">Com a regra nova, cada pessoa trabalha no máximo 5&nbsp;dias por semana. Se a empresa abre 6 ou 7&nbsp;dias, alguém precisa cobrir as folgas.</p>
+        </div>
+        <div class="form-calc">
+          <div class="horarios campo">
+            <div class="hor-grupo" id="hor-agrupado"></div>
+            <div class="hor-grupo" id="hor-separado" hidden></div>
+            <button type="button" class="link-acao hor-alternar" id="hor-alternar" aria-expanded="false" aria-controls="hor-separado">Os dias da semana têm horários diferentes</button>
+            <div class="hor-almoco">
+              <label class="hor-x"><input type="checkbox" id="hor-almoco"><span>Fecha para o almoço</span></label>
+              <label class="hor-dur"><span class="sr-only">Duração do almoço</span><select id="hor-almoco-dur"><option value="0.5">30 minutos</option><option value="1" selected>1&nbsp;hora</option><option value="1.5">1&nbsp;hora e meia</option><option value="2">2&nbsp;horas</option></select></label>
+            </div>
+            <fieldset class="conv campo">
+              <legend class="conv-leg"><span class="bb-rot-l"><span class="bb-rot">A convenção ou acordo coletivo da sua categoria permite jornada de até 8h24 por dia?</span><button type="button" class="ajuda-bt" data-controle aria-expanded="false" aria-controls="conv-ori" aria-label="Como preencher: convenção coletiva">?</button></span></legend>
+              <div class="conv-op">
+                <label class="conv-bt"><input type="radio" name="convencao" value="sim" aria-describedby="conv-ori"><span>Sim</span></label>
+                <label class="conv-bt"><input type="radio" name="convencao" value="nao" aria-describedby="conv-ori"><span>Não</span></label>
+                <label class="conv-bt"><input type="radio" name="convencao" value="naosei" checked aria-describedby="conv-ori"><span>Não sei</span></label>
+              </div>
+              <p class="orienta" id="conv-ori" hidden>Muda só dezembro de 2026. Sem convenção que permita, o limite é 8 horas por dia (40 horas em 5 dias). Se não souber, deixe "Não sei" e mostramos os dois cenários.</p>
+            </fieldset>
+            <p class="hor-total" id="hor-total" aria-live="polite">Total: 54&nbsp;horas abertas por semana, em 6&nbsp;dias.</p>
+            <input type="hidden" id="emp-dias" value="6" data-sel="0,1,2,3,4,5"><input type="hidden" id="emp-horas" value="54">
+          </div>
+        </div>
+        <div class="acoes">
+          <button type="button" class="link-acao" id="btn-voltar1">← Voltar</button>
+          <button type="button" class="bv" id="btn-resultado">Ver resultado</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="previa vazia" id="previa" aria-label="Prévia do resultado">
+      <div class="pv-cab"><span class="pv-tit">Prévia ao vivo</span><span class="pv-status"><span class="pv-ponto" aria-hidden="true"></span>calculando</span></div>
+      <p class="pv-vazia">Preencha os campos para ver a prévia</p>
+      <div class="pv-corpo">
+        <p class="pv-nome" id="pv-nome"></p>
+        <div class="pv-nums">
+          <p class="pv-box"><span class="pv-n" id="pv-pessoas">0</span><span class="pv-leg" id="pv-pessoas-leg">pessoas que vão trabalhar menos horas ou ganhar uma folga a mais</span></p>
+          <p class="pv-box"><span class="pv-n pv-terra"><span id="pv-horas">0</span></span><span class="pv-leg" id="pv-horas-leg">horas de trabalho a menos por semana, somando a equipe</span></p>
+        </div>
+        <p class="pv-depois" id="pv-depois"></p>
+        <p class="pv-sub">A semana de cada pessoa</p>
+        <div class="pv-semana" id="pv-semana"></div>
+        <div class="pv-barras" id="pv-barras"></div>
+        <p class="pv-leitura" id="pv-leitura"></p>
+      </div>
+      <div class="pv-mob">
+        <p class="pvm-item"><span class="pvm-n" id="pvm-pessoas">0</span><span class="pvm-leg">pessoas</span></p>
+        <p class="pvm-item"><span class="pvm-n pv-terra"><span id="pvm-horas">0</span>&nbsp;h · <span id="pvm-horas2">0</span>&nbsp;h</span><span class="pvm-leg">h a menos: 2026 · 2027</span></p>
+        <button type="button" class="pvm-bt" id="pvm-continuar">Continuar</button>
+      </div>
+    </aside>
+    </div>
+
+    <!-- PASSO 3 -->
+    <div class="passo" id="passo-3" hidden>
+      <div class="print-cab"><img src="img/logo-128.png" width="128" height="128" alt=""><div><strong>Capital Humano Intelligence</strong><span>Sua escala cabe na regra nova? · Resultado de <span id="res-data" style="display:inline"></span> · <span id="pdf-cliente" style="display:inline"></span></span></div></div>
+      <h2 class="sr-only">O resultado da sua empresa</h2>
+      <p class="res-chave">O tamanho do ajuste em dezembro depende da convenção coletiva da sua categoria. Confira com o contador ou o sindicato, ou responda "Não sei" para ver os dois cenários.</p>
+      <section class="r-card respostas" id="res-respostas" aria-labelledby="resp-tit"></section>
+      <h3 class="det-tit">Os detalhes de cada data</h3>
+      <p class="abas-intro">A mudança vem em duas vezes. Veja cada uma.</p>
+      <div class="res-abas" role="tablist" aria-label="Datas da mudança">
+        <button type="button" role="tab" class="res-aba" id="aba-e1" data-etapa="e1" aria-selected="true" aria-controls="pane-e1" data-controle><span class="et-n">1</span><span>Em dezembro de 2026</span></button>
+        <button type="button" role="tab" class="res-aba" id="aba-e2" data-etapa="e2" aria-selected="false" aria-controls="pane-e2" tabindex="-1" data-controle><span class="et-n">2</span><span>Em dezembro de 2027</span></button>
+      </div>
+      <p class="res-linha" id="res-linha"></p>
+      <p class="res-premissa">Regra geral em dezembro de 2026: até 8&nbsp;h por dia, ou 40&nbsp;h em 5&nbsp;dias. Até 42&nbsp;h em 5&nbsp;dias (cerca de 8h24 por dia) só se a convenção ou acordo coletivo da categoria permitir. Em dezembro de 2027, até 8&nbsp;h por dia e 40&nbsp;h por semana para todos.</p>
+      <div class="etapa-pane" id="pane-e1" role="tabpanel" aria-labelledby="aba-e1"></div>
+      <div class="etapa-pane" id="pane-e2" role="tabpanel" aria-labelledby="aba-e2" hidden></div>
+      <section class="r-card r-detalhes" aria-label="Detalhes">
+        <div class="r-col"><h3>O que muda</h3><div id="res-muda"></div></div>
+        <div class="r-col"><h3>Onde olhar</h3><div id="res-olhar"></div></div>
+        <div class="r-col"><h3>Quanto custa</h3><div id="res-custo"></div></div>
+      </section>
+      <section class="r-card" aria-labelledby="frentes-tit">
+        <h3 id="frentes-tit">Quatro frentes para começar</h3>
+        <ol class="frentes">
+          <li>Mapear a jornada real: contratos, cartões de ponto, horas extras e convenção coletiva.</li>
+          <li>Mapear a cobertura: quantas pessoas são necessárias em cada horário e nos dias de maior movimento.</li>
+          <li>Pedir à contabilidade o custo completo da equipe, com encargos e benefícios, e simular cada caminho.</li>
+          <li>Montar as novas escalas antes de dezembro de 2026, com a contabilidade.</li>
+        </ol>
+      </section>
+
+      <div class="cta">
+        <h3>Quer ajuda para&nbsp;montar a&nbsp;nova escala?</h3>
+        <p>Fale com a gente pelo WhatsApp (77) 98164-0599.</p>
+        <a class="bv" id="cta-agendar" href="https://wa.me/5577981640599?text=Ol%C3%A1%2C%20Daniela%20Matos!%20Usei%20a%20calculadora%20da%20escala%206x1%20e%20quero%20ajuda%20para%20montar%20a%20nova%20escala." target="_blank" rel="noopener" data-evento="escala6x1_cta_whatsapp"><svg class="ic-svg fa-whatsapp" viewBox="0 0 448 512" width="0.875em" height="1em" fill="currentColor" aria-hidden="true" focusable="false" style="vertical-align:-.125em;"><path d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg> Falar pelo WhatsApp</a>
+      </div>
+
+      <section class="r-card lei-fim" aria-labelledby="lei-fim-tit">
+        <h3 id="lei-fim-tit">O que muda na lei</h3>
+        <ul class="info-lista">
+          <li>A emenda que acaba com a escala 6x1 foi promulgada e publicada no Diário Oficial da União em 16/10/2026.</li>
+          <li>A partir de 16/12/2026: escala 5x2, com dois dias de descanso por semana e até 8&nbsp;horas por dia (40&nbsp;horas em 5&nbsp;dias). Até 42&nbsp;horas semanais, cerca de 8h24 por dia, só se a convenção ou acordo coletivo da categoria permitir.</li>
+          <li>A partir de 16/12/2027: até 40&nbsp;horas semanais para todos.</li>
+          <li>Sem redução de salário.</li>
+          <li>Com convenção ou acordo coletivo, a escala pode variar dentro do mês, com pelo menos 1 descanso por semana e média de 2 por semana no mês.</li>
+        </ul>
+      </section>
+
+      <p class="aviso"><strong>Importante:</strong> é uma estimativa. Não substitui a orientação do seu contador nem a convenção coletiva da sua categoria. As regras de transição ainda podem ser detalhadas. Escalas de revezamento, como a 12x36, seguem regras próprias e ainda dependem de regulamentação. Se a sua empresa usa uma delas, <a href="https://wa.me/5577981640599?text=Ol%C3%A1%2C%20Daniela%20Matos!%20Minha%20empresa%20usa%20uma%20escala%20de%20revezamento%20e%20quero%20uma%20an%C3%A1lise%20espec%C3%ADfica%20sobre%20o%20fim%20da%206x1." target="_blank" rel="noopener" data-evento="escala6x1_revezamento_whatsapp">fale com a gente</a> para uma análise específica. Uma lei complementar poderá prever medidas de transição para MEI e pequenas empresas, condicionadas à manutenção de empregos. Até lá, vale a regra geral.</p>
+
+      <div class="pdf">
+        <button type="button" class="link-acao" id="btn-abrir-pdf">Salvar este resultado em PDF →</button>
+        <p class="pdf-nota">O PDF é gerado pelo seu navegador: escolha "Salvar como PDF" na janela de impressão. Nada é enviado.</p>
+      </div>
+
+      <div class="voltar">
+        <button type="button" class="link-acao" id="btn-voltar2">← Alterar os dados</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="rodape">
+  <div class="rod-in">
+    <p class="rod-nome">© 2026 Daniela Matos · Capital Humano Intelligence · Todos os direitos reservados</p>
+    <div class="flinks">
+      <a href="https://capitalhumanointelligence.com/escala-6x1" target="_blank" rel="noopener">Versão no ar</a>
+      <a href="https://www.linkedin.com/in/danielamatosfreitas" target="_blank" rel="noopener">LinkedIn de Daniela Matos</a>
+    </div>
+  </div>
+</footer>
+
+<script src="js/escala-6x1.js"></script>
+<script src="js/alinhamento.js" defer></script>
+</body>
+</html>

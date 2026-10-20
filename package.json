@@ -1,0 +1,11 @@
+{
+  "name": "calculadora-escala-6x1",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Calculadora da escala 6x1 para pequenas e médias empresas",
+  "author": "Daniela Matos",
+  "license": "UNLICENSED",
+  "scripts": {
+    "test": "node --test"
+  }
+}
