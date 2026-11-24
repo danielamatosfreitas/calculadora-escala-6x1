@@ -185,6 +185,8 @@ footer a:hover{color:#fff;}
 /* títulos com destaque inquebrável: fonte menor em telas estreitas para caber */
 @media(max-width:420px){.hero h1{font-size:30px;}.st{font-size:29px;}}
 @media(max-width:374px){.hero h1{font-size:29px;}}
+/* 320 px (11/11/2026): títulos com o destaque inteiro e etiquetas que quebram a linha, sem passar da tela */
+@media(max-width:340px){.hero h1,.st{font-size:25px;}.tag{white-space:normal;}}
 
 /* Destaque de título: itálico, terracota e mesmo peso do título (regra de 07/10/2026) */
 h1 em,h2 em,h3 em,.st em,.intro-title span{font-style:italic!important;font-weight:inherit!important;color:var(--destaque,#A95229)!important;}
@@ -218,6 +220,16 @@ h1,h2,h3,h4,.st,.intro-title,.section-title,.page-title,.form-title,.cta-title,.
   .bnav{padding:8px 12px!important;font-size:12px!important;letter-spacing:.08em!important;}
   .nav-toggle{width:38px;height:38px;margin-left:8px;}
 }
+/* Telas até 400 px (11/11/2026): logo, nome, "Falar comigo" e o botão de menu cabem sem passar da tela;
+   até 350 px, o "Falar comigo" sai da barra e fica dentro do menu */
+@media(max-width:400px){
+  nav,nav.sc{padding:10px 12px;gap:8px;}
+  .nl{gap:6px;}
+  .nl img{height:40px;}
+  .bnav{padding:8px 10px!important;letter-spacing:.04em!important;}
+  .nav-toggle{width:36px;height:36px;margin-left:6px;}
+}
+@media(max-width:350px){nav:not(.menu-aberto) .nr .bnav{display:none;}}
 
 /* Telas grandes (18/10/2026): corpo de texto com pelo menos 16 px a partir de 1280 px, só na tela (Recrutamento & Seleção, Vagas e carreira) */
 @media screen{

@@ -26,6 +26,15 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', alinhar);
   else alinhar();
   // conteúdo montado depois (relatório dos diagnósticos) e mudança de largura (justificação por media query)
-  new MutationObserver(agendar).observe(document.documentElement, { childList: true, subtree: true });
+  // (27/10/2026) só reage a elementos novos fora do painel animado de /recrutamento-e-selecao: troca de texto não dispara a varredura
+  new MutationObserver(function (lista) {
+    for (var i = 0; i < lista.length; i++) {
+      var novos = lista[i].addedNodes;
+      for (var j = 0; j < novos.length; j++) {
+        var n = novos[j];
+        if (n.nodeType === 1 && !(n.closest && n.closest('#painel-rs'))) { agendar(); return; }
+      }
+    }
+  }).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('resize', agendar);
 })();

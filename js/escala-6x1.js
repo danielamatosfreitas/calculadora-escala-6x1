@@ -4,9 +4,11 @@
   'use strict';
 
   // ───────── cálculo (sem tela; usado também nos testes) ─────────
-  // Modelo de 18/10/2026 (aprovado pela Daniela Matos), revisto em 19/10/2026 pelo texto da emenda, por grupo e por etapa
-  // (L = 42 na primeira, 40 na segunda). Na transição, as 2 horas acima das 8 diárias (até 42 h) só valem com convenção ou acordo coletivo que permita 8h24 por dia; a regra geral é 8 h por dia:
-  //   diasNovos = mínimo(dias, 5); etapa 1: horasNovas = mínimo(horas da semana, 42, diasNovos × 8 + 2);
+  // Modelo de 18/10/2026, revisto em 19/10/2026 pelo texto da emenda, por grupo e por etapa
+  // (L = 42 na primeira, 40 na segunda). Etapa 1 pela liminar do STF de 12/11/2026 (ainda sujeita a referendo do plenário): as 42 h podem ser
+  // distribuídas em 5 dias de até 8h24 quando não há acordo ou convenção coletiva até 15/12/2026 (a calculadora usa essa regra
+  // para todos, porque não pergunta sobre o acordo); com menos de 5 dias de trabalho, o teto diário continua 8 h:
+  //   diasNovos = mínimo(dias, 5); etapa 1: horasNovas = mínimo(horas da semana, 42, diasNovos × (8,4 com 5 dias; 8 com menos));
   //   etapa 2: horasNovas = mínimo(horas da semana, 40, diasNovos × 8)
   //   muda de escala se dias > 5 ou horas > horasNovas; perda = (horas − horasNovas) × pessoas
   //   equivalente em pessoas = perda total / L (1 casa); custo da hora: horas / horasNovas − 1
@@ -15,8 +17,9 @@
   function etapa(grupos, empresa, L) {
     var linhas = grupos.map(function (g) {
       var diasNovos = Math.min(g.dias, 5);
-      // dez. 2026: 42 h em 5 dias (8h24 por dia) só se a convenção ou acordo coletivo permitir; sem isso, 8 h por dia (20/10/2026)
-      var horasNovas = Math.min(g.horas, L, diasNovos * 8 + (L > 40 && empresa.convencao === 'sim' ? 2 : 0));
+      // etapa 1 (liminar do STF de 12/11/2026): teto de 8h24 por dia com 5 dias de trabalho, 8 h com menos; etapa 2: 8 h por dia
+      var tetoDiario = L > 40 && diasNovos === 5 ? 8.4 : 8;
+      var horasNovas = Math.min(g.horas, L, diasNovos * tetoDiario);
       var perdaPessoa = g.horas - horasNovas;
       var cob = null;
       if (g.simultaneas) {
@@ -48,8 +51,8 @@
     });
     var horas = linhas.reduce(function (a, l) { return a + l.perda; }, 0);
     return {
-      // jornada integral da data: em dez. 2026 sem convenção que permita 8h24 por dia, 40 h (8 h em 5 dias)
-      limite: L > 40 && empresa.convencao !== 'sim' ? 40 : L,
+      // jornada integral da data: 42 h na etapa 1 (liminar do STF), 40 h na etapa 2
+      limite: L,
       linhas: linhas,
       pessoas: linhas.filter(function (l) { return l.muda; }).reduce(function (a, l) { return a + l.pessoas; }, 0),
       horas: horas,
@@ -70,10 +73,12 @@
   function fatorDe(regime) { return FATORES[regime] || FATORES.naosei; }
   // Todos os caminhos cobrem as mesmas horas H por grupo: com pessoas ao mesmo tempo, H = horas que faltam para a cobertura
   // (0 quando a equipe cobre); sem esse dado, H = horas perdidas por semana. Contratar (CLT, art. 58-A: tempo parcial até 30 h):
-  // H até 30 vira 1 pessoa em tempo parcial de H horas (hora inteira), com salário proporcional (salário × H / jornada nova);
+  // H até 30 vira 1 pessoa em tempo parcial de H horas (hora inteira), com salário proporcional (salário × H / horas semanais novas do grupo,
+  // a mesma base do valor da hora extra; CLT, art. 58-A, § 1º; 11/11/2026);
   // acima de 30, pessoas em tempo integral = parte inteira de H / jornada nova, e a sobra vira 1 parcial (até 30 h) ou mais 1 integral.
   // Hora extra: H × 4,33 × valor da hora (salário / (jornada nova × 5)) × 1,5 × 7/6 (reflexo no descanso semanal remunerado) × fator.
   // Projeção de 12 meses: contratar tem um custo único no mês 1 de 1 salário por pessoa contratada (seleção, admissão e treinamento).
+  // Esse custo é fixo e fica inteiro também no tempo parcial (11/11/2026): só o salário mensal é proporcional às horas.
   function custos(r, regime) {
     var f = fatorDe(regime);
     function porEtapa(e) {
@@ -82,7 +87,8 @@
         var H;
         if (l.cobertura && l.cobertura.status !== 'abaixo') { if (l.cobertura.status === 'dados') dados = true; H = l.cobertura.status === 'falta' ? l.cobertura.deficit : 0; }
         else H = l.perda;
-        // jornada integral da etapa (42 ou 40) para contratar; valor da hora pelas horas novas do grupo na etapa
+        // jornada integral da etapa (42 ou 40) para contar as pessoas em tempo integral; valor da hora e salário do tempo parcial
+        // pelas horas novas do grupo na etapa (a mesma base nas duas contas)
         var Hc = H > 0 ? Math.ceil(H - 1e-9) : 0, J = e.limite, jn = l.horasNovas, integrais = 0, parcial = 0, sobraExtra = 0;
         if (Hc > 0) {
           var n = Math.floor(Hc / J), sobra = Hc - n * J;
@@ -96,7 +102,7 @@
         return {
           nome: l.nome, H: H, Hc: Hc, jornada: jn, integrais: integrais, parcial: parcial, sobraExtra: sobraExtra, pessoasNovas: integrais + (parcial ? 1 : 0), salario: sal,
           porDias: porDias, faltaDias: porDias ? l.cobertura.faltaDias : 0, juntas: l.simultaneas,
-          contratar: sal && Hc ? f.map(function (x) { return (integrais * sal + (parcial ? sal * parcial / J : 0)) * x + (sobraExtra ? custoExtra(sobraExtra, x) : 0); }) : null,
+          contratar: sal && Hc ? f.map(function (x) { return (integrais * sal + (parcial ? sal * parcial / jn : 0)) * x + (sobraExtra ? custoExtra(sobraExtra, x) : 0); }) : null,
           unico: sal && Hc ? (integrais + (parcial ? 1 : 0)) * sal : null,
           extra: sal && H > 0 ? f.map(function (x) { return custoExtra(H, x); }) : null,
           extrasPorPessoa: H / l.pessoas, excede: H / l.pessoas > 10
@@ -130,14 +136,19 @@
     }
     return { fator: f, e1: porEtapa(r.e1), e2: porEtapa(r.e2) };
   }
-  if (typeof module !== 'undefined' && module.exports) { module.exports = { calcular: calcular, etapa: etapa, custos: custos }; return; }
+  // em Node (testes), o arquivo exporta o cálculo e os textos da recomendação e dos caminhos (13/11/2026); a parte da tela só liga no navegador
+  var EM_NODE = typeof module !== 'undefined' && !!module.exports;
 
   // ───────── formatação ─────────
   var num = function (n) { return n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }); };
   var reais = function (n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
   var reaisInteiros = function (n) { return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }); };
   var pessoasTxt = function (n) { return num(n) + (n >= 2 ? '\u00a0pessoas' : '\u00a0pessoa'); };
-  var horasTxt = function (n) { return num(n) + (n === 1 ? '\u00a0hora' : '\u00a0horas'); };
+  // singular abaixo de 2 ("1 hora", "1,5 hora"); zero e de 2 em diante, plural (29/10/2026)
+  var umaHora = function (n) { return n > 0 && n < 2; };
+  var horasTxt = function (n) { return num(n) + (umaHora(n) ? '\u00a0hora' : '\u00a0horas'); };
+  var faltamTxt = function (n) { return (umaHora(n) ? 'falta ' : 'faltam ') + horasTxt(n); };
+  var extrasTxt = function (n) { return num(n) + (umaHora(n) ? '\u00a0hora extra' : '\u00a0horas extras'); };
   var afetadasTxt = function (n) { return n === 1 ? 'pessoa que vai trabalhar menos horas ou ganhar uma folga a mais' : 'pessoas que vão trabalhar menos horas ou ganhar uma folga a mais'; };
   function lista(nomes) { return nomes.length <= 1 ? nomes.join('') : nomes.slice(0, -1).join(', ') + ' e ' + nomes[nomes.length - 1]; }
   function esc(t) { return String(t == null ? '' : t).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -271,11 +282,8 @@
     var dCampo = $('emp-dias');
     var d = validarInteiro(dCampo, 1, 7, 'os dias em que a empresa abre');
     var h = validarFaixa($('emp-horas'), 1, 168, 'as horas em que a empresa fica aberta na semana');
-    return d != null && h != null ? { dias: d, horas: h, diasSel: diasMarcados(dCampo, d), convencao: convencaoEscolhida() } : null;
+    return d != null && h != null ? { dias: d, horas: h, diasSel: diasMarcados(dCampo, d) } : null;
   }
-  // convenção ou acordo coletivo com até 8h24 por dia: 'sim', 'nao' ou 'naosei' (padrão); no cálculo, "Não sei" segue o cenário sem convenção
-  function convencaoEscolhida() { var e = document.querySelector('input[name="convencao"]:checked'); return e ? e.value : 'naosei'; }
-  function convencaoCalculo() { return convencaoEscolhida() === 'sim' ? 'sim' : 'nao'; }
   // número entre min e max (aceita decimal)
   function validarFaixa(campo, min, max, rotulo) {
     var n = lerNumero(campo.value);
@@ -332,11 +340,11 @@
       '<div class="regua-caixa"><input type="range" class="regua" min="20" max="60" step="1" value="44" aria-label="Régua de horas por semana, de 20 a 60"' + desc + '>' +
       '<span class="regua-marca m42" aria-hidden="true"></span><span class="regua-marca m40" aria-hidden="true"></span></div>' +
       '<div class="regua-esc" aria-hidden="true"><span>20\u00a0h</span><span class="lim">42\u00a0h em dez. 2026 · 40\u00a0h em dez. 2027</span><span>60\u00a0h</span></div>' +
-      '<p class="regua-nota">Dez. 2026: 42\u00a0h, ou 40\u00a0h se a convenção não permitir 8h24 por dia.</p>' +
+      '<p class="regua-nota">Dez. 2026: até 42\u00a0h; sem acordo coletivo, em 5\u00a0dias de até 8h24 (liminar do STF).</p>' +
       orientaP(id, ori) + '</div>';
   }
   // mostra a orientação de um campo e esconde as dos outros (null esconde todas)
-  var podeHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  var podeHover = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   function orientar(campo) {
     document.querySelectorAll('#calculadora .orienta').forEach(function (o) {
       var c = o.closest('.campo'), on = c === campo;
@@ -501,13 +509,13 @@
     pv.classList.toggle('vazia', !g.length);
     if (!g.length) return;
     ativo = ativo || g[0];
-    var conv = convencaoCalculo(), r = calcular(g, { dias: 0, horas: 0, convencao: conv });
+    var r = calcular(g, { dias: 0, horas: 0 });
     $('pv-pessoas').textContent = num(r.e1.pessoas); $('pvm-pessoas').textContent = num(r.e1.pessoas);
     $('pv-horas').textContent = num(r.e1.horas); $('pvm-horas').textContent = num(r.e1.horas); $('pvm-horas2').textContent = num(r.e2.horas);
     $('pv-pessoas-leg').textContent = afetadasTxt(r.e1.pessoas);
     $('pv-horas-leg').textContent = (r.e1.horas === 1 ? 'hora' : 'horas') + ' de trabalho a menos por semana, somando a equipe';
     $('pv-depois').textContent = 'Em dezembro de 2026: ' + horasTxt(r.e1.horas) + ' a menos. Em dezembro de 2027: ' + horasTxt(r.e2.horas) + ' a menos.';
-    var l = etapa([ativo], { dias: 0, horas: 0, convencao: conv }, 42).linhas[0], l2 = etapa([ativo], { dias: 0, horas: 0 }, 40).linhas[0];
+    var l = etapa([ativo], { dias: 0, horas: 0 }, 42).linhas[0], l2 = etapa([ativo], { dias: 0, horas: 0 }, 40).linhas[0];
     $('pv-nome').textContent = ativo.nome || 'Grupo';
     $('pv-semana').innerHTML = semanaGrade(l, l.diasNovos);
     var barra = function (rot, h, cls) { return '<div><div class="pvb-lin"><span>' + rot + '</span><span>' + hTxt(h) + '</span></div><div class="pvb-tri"><span class="pvb-val ' + cls + '" style="width:' + Math.round(Math.min(h, 60) / 60 * 100) + '%"></span></div></div>'; };
@@ -531,8 +539,10 @@
     pv.classList.toggle('escondida', noResultado || tecladoAberto || !!avisoNaTela);
   }
 
-  // datas das etapas: EC 141 publicada no DOU em 16/10/2026; a primeira etapa vale 2 meses depois (16/12/2026) e a segunda, 16/12/2027 (decisão de 20/10/2026)
-  function diasAteEtapa() { return Math.ceil((new Date(2026, 11, 16) - new Date()) / 86400000); }
+  // datas das etapas: EC 141/2026, publicada em 16/10/2026; art. 6º, I, e art. 10, I: 16/12/2026; art. 6º, II: 16/12/2027 (prazo contado
+  // do dia inicial ao dia correspondente do mês, Lei 810/1949). A contagem vai até 00h de cada data no horário de Brasília (UTC-3).
+  var ETAPA_DATA = { e1: Date.UTC(2026, 11, 16, 3), e2: Date.UTC(2027, 11, 16, 3) };
+  function diasAteEtapa(k) { return Math.ceil((ETAPA_DATA[k || 'e1'] - Date.now()) / 86400000); }
 
   // ───────── resultado ─────────
   var diasTxt = function (n) { return n + (n === 1 ? '\u00a0dia' : '\u00a0dias'); };
@@ -552,16 +562,16 @@
   function blocoResumo(r, c, k) {
     var e = c.e1, custo;
     if (e.dados) custo = { n: '', l: 'Confira os números da equipe e do horário' };
-    else if (e.ajuste) custo = { n: reais(0), l: 'a mais por mês, com ajuste de horário' };
+    else if (e.ajuste) custo = { n: reais(0), l: 'a mais por mês, reorganizando a escala' };
     else if (!e.H) custo = { n: reais(0), l: r.e1.pessoas ? 'a mais por mês, com folgas alternadas' : 'a mais por mês' };
     else if (e.contratar) custo = { n: faixa(e.contratar), l: 'a mais por mês no caminho indicado' + (e.semSalario.length ? ', sem contar ' + esc(lista(e.semSalario)) : '') };
     else custo = { n: '', l: 'Informe o salário para ver o custo' };
-    var faltam = k === 'e2' ? Math.ceil((new Date(2027, 11, 16) - new Date()) / 86400000) : diasAteEtapa();
+    var faltam = diasAteEtapa(k);
     var itens = [
       { n: num(r.e1.pessoas), l: afetadasTxt(r.e1.pessoas) },
       { n: num(r.e1.horas), l: r.e1.horas === 1 ? 'hora de trabalho a menos por semana, somando a equipe' : 'horas de trabalho a menos por semana, somando a equipe', terra: true },
       { n: custo.n, l: custo.l, sem: !custo.n },
-      faltam > 0 ? { n: diasTxt(faltam), l: k === 'e2' ? 'até a segunda mudança, em dezembro de 2027' : 'até a primeira mudança, em dezembro de 2026' } : { n: 'já valendo', l: k === 'e2' ? 'segunda mudança, dezembro de 2027' : 'primeira mudança, dezembro de 2026' }
+      faltam > 0 ? { n: diasTxt(faltam), l: k === 'e2' ? 'até a segunda etapa da nova jornada, em 16/12/2027' : 'até a primeira etapa da nova jornada, em 16/12/2026' } : { n: 'já valendo', l: k === 'e2' ? 'segunda etapa da nova jornada, desde 16/12/2027' : 'primeira etapa da nova jornada, desde 16/12/2026' }
     ];
     return itens.map(function (x) {
       return '<div class="res-num-card' + (x.sem ? ' sem-valor' : '') + '">' + (x.n ? '<span class="res-num-val' + (x.terra ? ' terra' : '') + '">' + x.n + '</span>' : '') + '<span class="res-num-leg">' + x.l + '</span></div>';
@@ -590,13 +600,41 @@
     return t.replace(re, f).replace(re, f);
   }
   // cartão "Recomendação" no topo do resultado: botão principal em creme e, quando há, o secundário com contorno
-  var WA_ESCALA = 'https://wa.me/5577981640599?text=' + encodeURIComponent('Olá, Daniela Matos! Usei a calculadora da escala 6x1 e quero conversar sobre a nova escala da minha empresa.');
+  var WA_ESCALA = 'https://wa.me/5577981640599?text=' + encodeURIComponent('Olá, Daniela! Usei a calculadora da escala 6x1 e quero conversar sobre a nova escala da minha empresa.');
+  // Poucas horas a cobrir (13/11/2026): de 1 a 11 horas por semana (e.ajuste), a recomendação deixa de
+  // indicar o corte de horário pelo custo zero, que ignora a venda perdida. Custo por hora coberta = custo mensal do caminho ÷ (horas a
+  // cobrir por semana × 4,33), sem o custo único; arredondamento só no fim, em centavos, com meio centavo para cima.
+  var arred = function (v) { return Math.round(v * 100 + 1e-6) / 100; };
+  function custoPorHora(e) {
+    return {
+      contratar: e.contratar && e.Hc ? e.contratar.map(function (v) { return arred(v / (e.Hc * 4.33)); }) : null,
+      extra: e.extra && e.H ? e.extra.map(function (v) { return arred(v / (e.H * 4.33)); }) : null
+    };
+  }
+  // um valor quando o regime é conhecido; "entre R$ X e R$ Y" com os fatores 1,29 e 1,62
+  var faixaHora = function (v) { return v.length === 1 || v[0] === v[1] ? reais(v[0]) : 'entre ' + reais(v[0]) + ' e ' + reais(v[1]); };
+  // contratar sai mais barato que a hora extra em 12 meses (com o custo único), em todos os fatores mostrados
+  function contratarCompensa(e) {
+    return !!(e.contratar && e.extra && e.unico != null && !e.semExtra && e.contratar.every(function (v, i) { return v * 12 + e.unico < e.extra[i] * 12; }));
+  }
+  // frase da segunda etapa, quando ela tem mais horas a cobrir (só na aba de dez. 2026)
+  function segundaEtapa(c) {
+    if (!(c.e1.ajuste && !c.e2.dados && c.e2.Hc > c.e1.Hc)) return '';
+    return 'Em 16/12/2027 ' + (umaHora(c.e2.Hc) ? 'vai faltar ' : 'vão faltar ') + horasTxt(c.e2.Hc) + ' por semana: contratar antes evita disputar gente com todas as empresas ao mesmo tempo.';
+  }
+  function textoAjuste(e, depois) {
+    var h = horasTxt(e.Hc), p = custoPorHora(e);
+    var t = (umaHora(e.Hc) ? 'Falta ' : 'Faltam ') + h + ' por semana. Antes de fechar mais cedo, organize as entradas e as folgas pelo movimento da loja: muitas vezes isso cobre o horário sem custo.';
+    if (e.completo && p.contratar) return t + ' Se ainda faltar gente, contratar alguém por ' + h + ' custa cerca de ' + faixaHora(p.contratar) + ' por hora coberta' +
+      (p.extra && !e.semExtra ? ', e a hora extra, ' + faixaHora(p.extra) : '') + '. Feche só os horários que dão menos lucro do que isso.' + (depois ? ' ' + depois : '');
+    return t + (depois ? ' ' + depois : '') + ' Informe o salário médio no primeiro passo para ver quanto custa cada hora coberta.';
+  }
   function tituloRecomendacao(r, c) {
     var e = c.e1;
     if (e.dados) return 'Confira os números da equipe e do horário';
     if (!e.H && !r.e1.pessoas) return 'O horário de hoje já cabe na regra nova';
     if (!e.H) return 'Organize folgas alternadas';
-    if (e.ajuste) return 'Ajuste o horário ou redistribua as tarefas';
+    if (e.ajuste) return 'Reorganize a escala antes de cortar horário';
     return 'Contrate ' + textoContratacao(e) + (e.sobraExtra ? '. ' + textoSobra(e) : '');
   }
   function blocoRecomendacao(r, c, extra) {
@@ -612,13 +650,13 @@
         : 'A equipe de hoje dá conta do horário. Basta alternar as folgas (cada pessoa folga num dia diferente), sem contratar.';
       botoes = wa('rec-bt');
     }
-    else if (e.ajuste) { txt = 'Faltam ' + horasTxt(e.Hc) + ' por semana, pouco para uma contratação. O caminho mais simples é reduzir o atendimento nos horários de menor movimento ou redistribuir tarefas entre a equipe.' + (extra ? ' ' + extra : ''); botoes = wa('rec-bt'); }
+    else if (e.ajuste) { txt = textoAjuste(e, extra); botoes = wa('rec-bt'); }
     else {
       txt = e.semExtra ? textoNaoResolve(e.semExtra)
-        : e.completo ? fraseVirada(c) + ' Até lá, a hora extra resolve por pouco tempo.'
-        : 'Informe o salário médio no primeiro passo para ver o custo e em que mês contratar sai mais barato que a hora extra. Enquanto isso, a hora extra resolve por pouco tempo.';
+        : e.completo ? fraseVirada(c) + ' Enquanto a seleção acontece, a hora extra cobre as horas que faltam.'
+        : 'Informe o salário médio no primeiro passo para ver o custo e em que mês contratar sai mais barato que a hora extra. Enquanto a seleção acontece, a hora extra cobre as horas que faltam.';
       if (e.sobraExtra) txt = textoSobra(e) + ' ' + txt;
-      botoes = '<a class="rec-bt" href="recrutamento-e-selecao.html" data-evento="escala6x1_cta_recrutamento">Precisa contratar? Conduzimos a seleção</a>' + wa('rec-bt2');
+      botoes = '<a class="rec-bt" href="https://capitalhumanointelligence.com/recrutamento-e-selecao?utm_source=github&amp;utm_medium=referral&amp;utm_campaign=calculadora-publica" data-evento="escala6x1_cta_recrutamento">Precisa contratar? Conduzimos a seleção</a>' + wa('rec-bt2');
     }
     var tit = e.H && !e.ajuste ? 'Contrate ' + textoContratacao(e) : tituloRecomendacao(r, c);
     return '<div class="rec-corpo">' + eti + '<h3 class="rec-tit">' + prender(tit) + '</h3><p class="rec-txt">' + txt + '</p></div><div class="rec-botoes">' + botoes + '</div>';
@@ -639,31 +677,33 @@
     var contratar, extra, revez;
     if (!e.H) contratar = { t: 'Contratar', tag: '', v: '', txt: 'Pelos dados, não é preciso contratar.' };
     else contratar = {
-      t: !e.integrais ? 'Contratar alguém de meio período' : !e.parciais.length ? 'Contratar em tempo integral' : 'Contratar',
+      t: !e.integrais ? 'Contratar alguém em tempo parcial' : !e.parciais.length ? 'Contratar em tempo integral' : 'Contratar',
       v: valor(e.contratar),
       txt: textoContratacao(e).replace(/^./, function (x) { return x.toUpperCase(); }) + (e.parciais.length ? ', com salário proporcional e encargos. Respeite o piso da categoria.' : ', com encargos.') +
-        (e.sobraExtra ? ' As ' + horasTxt(e.sobraExtra) + ' que sobram ficam com ajuste de horário ou hora extra' + (e.contratar ? ', já somada no valor.' : '.') : '') +
+        (e.sobraExtra ? (umaHora(e.sobraExtra) ? ' Sobra ' + horasTxt(e.sobraExtra) + ', que fica' : ' Sobram ' + horasTxt(e.sobraExtra) + ', que ficam') + ' com ajuste de horário ou hora extra' + (e.contratar ? ', já somada no valor.' : '.') : '') +
         (e.contratar && e.semSalario.length ? ' O valor não inclui ' + esc(lista(e.semSalario)) + ', sem salário informado.' : '') +
-        (falta.length ? ' Ou reduzir o atendimento em cerca de ' + falta.map(function (l) { return hTxt(l.cobertura.reduzir) + ' por semana (' + esc(l.nome) + ')'; }).join(' e ') + '.' : '')
+        (falta.length ? ' Outra opção: reduzir em cerca de ' + falta.map(function (l) { return horasTxt(l.cobertura.reduzir) + ' por semana o atendimento de ' + esc(l.nome); }).join(' e em cerca de ') + '.' : '')
     };
     if (!e.H) extra = { t: 'Hora extra', v: '', txt: 'Não há horas a cobrir.' };
     else if (e.semExtra) extra = { t: 'Hora extra', v: '', txt: textoNaoResolve(e.semExtra), naoResolve: true };
     else {
-      var porPessoa = e.grupos.filter(function (g) { return g.H > 0; }).map(function (g) { return (e.comH.length > 1 ? esc(g.nome) + ': ' : '') + hTxt(Math.round(g.extrasPorPessoa * 10) / 10) + ' extras por pessoa por semana'; }).join('; ');
+      var porPessoa = e.grupos.filter(function (g) { return g.H > 0; }).map(function (g) { var x = Math.round(g.extrasPorPessoa * 10) / 10; return (e.comH.length > 1 ? esc(g.nome) + ': ' : '') + extrasTxt(x) + ' por pessoa por semana'; }).join('; ');
       extra = { t: 'Hora extra', v: valor(e.extra),
-        txt: porPessoa + ', com descanso semanal remunerado. Todo mês, vira custo fixo e risco trabalhista.' +
-          (e.excede.length ? ' No grupo ' + esc(lista(e.excede)) + ', passa de 10\u00a0h por pessoa na semana, acima do limite de 2\u00a0horas extras por dia em 5\u00a0dias: a hora extra sozinha não cobre tudo.' : '') };
+        txt: porPessoa + '. O valor já inclui o reflexo no descanso semanal remunerado. Todo mês, vira custo fixo e risco trabalhista.' +
+          (e.excede.length ? ' No grupo ' + esc(lista(e.excede)) + ', passa de 10\u00a0horas por pessoa na semana, acima do limite de 2\u00a0horas extras por dia em 5\u00a0dias: a hora extra sozinha não cobre tudo.' : '') };
     }
     // sempre que faltam horas (de 1 a 11 ou mais), o mesmo cartão e o mesmo texto (20/10/2026)
-    if (e.H) revez = { t: 'Ajustar o horário', txt: 'Reduzir ' + horasTxt(e.Hc) + ' de atendimento por semana nos horários de menor movimento. Não aumenta a folha, mas a empresa passa a atender menos.' };
+    if (e.H) revez = { t: 'Ajustar o horário', txt: 'Reduzir ' + horasTxt(e.Hc) + ' de atendimento por semana nos horários de menor movimento. Não aumenta a folha, mas a empresa deixa de vender nesses horários.' };
     else revez = { t: 'Folgas alternadas', txt: 'Alternar as folgas (cada pessoa folga num dia diferente) entre os dias de atendimento e, se preciso, ajustar o horário nos períodos de menos movimento.' };
     revez.v = '<p class="cam-val">' + reais(0) + '<small> por mês</small></p>';
     var indicaContratar = e.H > 0 && !e.ajuste;
-    contratar.tag = indicaContratar ? 'ind' : '';
-    extra.tag = extra.naoResolve ? 'nao' : e.H > 0 ? (k === 'e2' ? 'rec' : 'trans') : '';
-    revez.tag = indicaContratar ? 'sem' : (r.e1.pessoas > 0 || e.H > 0 ? 'ind' : 'sem');
-    var ETQ = { ind: 'Indicado para o seu caso', trans: 'Bom só por pouco tempo', rec: 'Custo todo mês', nao: 'Não resolve', sem: 'Sem custo na folha' };
-    var ordem = indicaContratar ? [contratar, extra, revez] : [revez, contratar, extra];
+    // poucas horas (13/11/2026): o selo vai para contratar só quando sai mais barato que a hora extra em 12 meses; senão, nenhum selo
+    var poucas = e.H > 0 && e.ajuste, seloContratar = indicaContratar || (poucas && contratarCompensa(e));
+    contratar.tag = seloContratar ? 'ind' : '';
+    extra.tag = extra.naoResolve ? 'nao' : e.H > 0 ? (k === 'e2' ? 'mensal' : 'trans') : '';
+    revez.tag = indicaContratar || poucas ? 'sem' : (r.e1.pessoas > 0 || e.H > 0 ? 'ind' : 'sem');
+    var ETQ = { ind: 'Indicado para o seu caso', trans: 'Serve para a transição', mensal: 'Vira custo fixo', nao: 'Não cobre o horário', sem: 'Não aumenta a folha' };
+    var ordem = seloContratar ? [contratar, extra, revez] : [revez, contratar, extra];
     return '<div class="caminhos-cards">' + ordem.map(function (x) {
       return '<div class="cam-card' + (x.tag === 'ind' ? ' indicado' : '') + '">' + (x.tag ? '<span class="cam-tag ' + x.tag + '">' + ETQ[x.tag] + '</span>' : '') +
         '<h4 class="cam-tit">' + x.t + '</h4>' + (x.v || '') + '<p class="cam-txt">' + x.txt + '</p></div>';
@@ -684,14 +724,27 @@
     for (var g = 0; g <= 3; g++) { var v = deg * g; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v).toFixed(1) + '" y2="' + y(v).toFixed(1) + '" stroke="' + (g ? '#EEE9DF' : '#D9D2C4') + '" stroke-width="1"/><text x="' + (L - 6) + '" y="' + (y(v) + 4).toFixed(1) + '" text-anchor="end" font-size="12" fill="#5B6660">' + rotY(v) + '</text>'; }
     [1, 4, 7, 10, 12].forEach(function (mm) { s += '<text x="' + x(mm).toFixed(1) + '" y="' + (Hh - 8) + '" text-anchor="' + (mm === 1 ? 'start' : mm === 12 ? 'end' : 'middle') + '" font-size="12" fill="#5B6660">' + (mm === 1 ? 'mês 1' : mm) + '</text>'; });
     var vir = e.virada && e.virada[0];
-    if (vir) s += '<line x1="' + x(vir).toFixed(1) + '" x2="' + x(vir).toFixed(1) + '" y1="' + T + '" y2="' + y(0).toFixed(1) + '" stroke="#A55028" stroke-width="1" stroke-dasharray="4 4"/>' +
-      '<text x="' + (x(vir) + 6).toFixed(1) + '" y="' + (cel ? y(0) - 8 : T + 12) + '" font-size="12" font-weight="600" fill="#7E3415"' + (x(vir) + 6 + (vir + 'º mês: contratar sai mais barato').length * 6.6 > W - R ? ' text-anchor="end" dx="-12"' : '') + '>' + vir + 'º mês: contratar sai mais barato</text>';
+    // rótulo da virada sempre inteiro dentro do gráfico: à direita da linha, à esquerda ou, se não couber, em duas linhas (28/10/2026)
+    if (vir) {
+      var larg = function (t) { return t.length * 6.2; }, xv = x(vir), rot = vir + 'º mês: contratar sai mais barato', yr = cel ? y(0) - 8 : T + 12;
+      var lado = function (t) { return xv + 6 + larg(t) <= W - R ? ['start', xv + 6] : xv - 6 - larg(t) >= 4 ? ['end', xv - 6] : null; };
+      var um = lado(rot), dois = um ? null : lado('contratar sai mais barato') || ['start', Math.max(4, Math.min(xv + 6, W - R - larg('contratar sai mais barato')))];
+      s += '<line x1="' + xv.toFixed(1) + '" x2="' + xv.toFixed(1) + '" y1="' + T + '" y2="' + y(0).toFixed(1) + '" stroke="#A55028" stroke-width="1" stroke-dasharray="4 4"/>' +
+        (um ? '<text x="' + um[1].toFixed(1) + '" y="' + yr + '" text-anchor="' + um[0] + '" font-size="12" font-weight="600" fill="#7E3415">' + rot + '</text>'
+          : '<text x="' + dois[1].toFixed(1) + '" y="' + (cel ? yr - 15 : yr) + '" text-anchor="' + dois[0] + '" font-size="12" font-weight="600" fill="#7E3415"><tspan>' + vir + 'º mês:</tspan><tspan x="' + dois[1].toFixed(1) + '" dy="15">contratar sai mais barato</tspan></text>');
+    }
     var linha = function (pts, cor) { return '<polyline fill="none" stroke="' + cor + '" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="' + pts.map(function (v, i) { return x(i + 1).toFixed(1) + ',' + y(v).toFixed(1); }).join(' ') + '"/>'; };
     s += linha(he, '#A55028') + linha(ct, '#223A2E');
     var cima = he[11] >= ct[11];
+    // o valor da linha de baixo fica abaixo dela em toda a largura do rótulo (a linha sobe da esquerda para a direita)
+    var abaixo = function (vals, txt) {
+      var m = 12 - (8 + txt.length * 6.6) / ((W - L - R) / 11), i = Math.max(0, Math.floor(m) - 1), v = vals[i] + (vals[Math.min(11, i + 1)] - vals[i]) * (m - 1 - i);
+      return Math.min(y(0) - 4, Math.max(y(vals[11]) + 19, y(v) + 15));
+    };
+    var rHe = reaisInteiros(he[11]), rCt = reaisInteiros(ct[11]);
     s += '<g class="fim"><circle cx="' + x(12).toFixed(1) + '" cy="' + y(he[11]).toFixed(1) + '" r="5" fill="#A55028"/><circle cx="' + x(12).toFixed(1) + '" cy="' + y(ct[11]).toFixed(1) + '" r="5" fill="#223A2E"/>' +
-      '<text x="' + (x(12) - 8).toFixed(1) + '" y="' + (y(he[11]) + (cima ? -9 : 19)).toFixed(1) + '" text-anchor="end" font-size="12" font-weight="600" fill="#7E3415">' + reaisInteiros(he[11]) + '</text>' +
-      '<text x="' + (x(12) - 8).toFixed(1) + '" y="' + (y(ct[11]) + (cima ? 19 : -9)).toFixed(1) + '" text-anchor="end" font-size="12" font-weight="600" fill="#223A2E">' + reaisInteiros(ct[11]) + '</text></g>';
+      '<text x="' + (x(12) - 8).toFixed(1) + '" y="' + (cima ? y(he[11]) - 9 : abaixo(he, rHe)).toFixed(1) + '" text-anchor="end" font-size="12" font-weight="600" fill="#7E3415">' + rHe + '</text>' +
+      '<text x="' + (x(12) - 8).toFixed(1) + '" y="' + (cima ? abaixo(ct, rCt) : y(ct[11]) - 9).toFixed(1) + '" text-anchor="end" font-size="12" font-weight="600" fill="#223A2E">' + rCt + '</text></g>';
     var dif = he[11] - ct[11];
     var desc = 'Custo acumulado em 12 meses. Hora extra: ' + reais(he[11]) + '. Contratar: ' + reais(ct[11]) + '.' + (vir ? ' Contratar sai mais barato a partir do ' + vir + 'º mês.' : '');
     return '<h3>Custo acumulado em 12 meses' + (c.fator.length > 1 ? ' (com o fator 1,29)' : '') + '</h3>' +
@@ -744,11 +797,11 @@
     if (c.status === 'dados') return c.motivo === 'pessoas' ? 'O número de pessoas que precisam trabalhar juntas é maior que o número de pessoas do grupo. Confira os números.'
       : 'As horas abertas passam de 24 por dia aberto. Confira os números.';
     if (c.status === 'abaixo') return (c.porDias ? 'Hoje a equipe soma ' + diasTxt(c.diasHoje) + ' de trabalho por semana, e o horário pede ' + diasTxt(c.necDias) + ' para ter ' + gente(c.s) + ' juntas.'
-      : 'Hoje a equipe soma ' + hTxt(c.hoje) + ' por semana, e o horário pede ' + hTxt(c.nec) + ' para ter ' + gente(c.s) + ' juntas.') +
+      : 'Hoje a equipe soma ' + horasTxt(c.hoje) + ' por semana, e o horário pede ' + horasTxt(c.nec) + ' para ter ' + gente(c.s) + ' juntas.') +
       ' Na prática, a empresa já funciona com menos gente em parte do horário. Por isso, comparamos com o que a equipe faz hoje.';
     if (c.status === 'cobre') return 'A equipe ainda dá conta do horário, desde que as folgas sejam alternadas (cada pessoa folga num dia diferente).';
-    if (c.faltaDias) return 'Com 5\u00a0dias por pessoa, faltam ' + diasTxt(c.faltaDias) + ' de trabalho por semana para ter ' + gente(c.s) + ' juntas em todos os dias abertos.';
-    return 'Faltam cerca de ' + hTxt(c.deficit) + ' por semana para ter gente em todo o horário. Seria preciso contratar ' + gente(c.contratar) + ' ou reduzir o atendimento em cerca de ' + hTxt(c.reduzir) + ' por semana.';
+    if (c.faltaDias) return 'Com 5\u00a0dias por pessoa, ' + (c.faltaDias === 1 ? 'falta ' : 'faltam ') + diasTxt(c.faltaDias) + ' de trabalho por semana para ter ' + gente(c.s) + ' juntas em todos os dias abertos.';
+    return (umaHora(c.deficit) ? 'Falta cerca de ' : 'Faltam cerca de ') + horasTxt(c.deficit) + ' por semana para ter gente em todo o horário. Seria preciso contratar ' + gente(c.contratar) + ' ou reduzir o atendimento em cerca de ' + horasTxt(c.reduzir) + ' por semana.';
   }
   function blocoOlhar(r, empresa) {
     var html = '';
@@ -775,10 +828,10 @@
     var html = '<ul>' + (r.e1.horas === r.e2.horas
       ? '<li><span class="etq">Nas duas datas:</span> ' + (r.e1.horas ? hTxt(r.e1.horas) + ' de trabalho por semana deixam de existir, somando a equipe.' : 'nenhuma hora de trabalho deixa de existir.') + '</li>'
       : porEtapa(linhaPerda(r.e1), linhaPerda(r.e2))) + '</ul>';
-    if (r.e1.pessoas) html += '<p class="res-txt">Se a sua categoria tiver convenção ou acordo com compensação dentro do mês, algumas semanas de 6\u00a0dias continuam possíveis. A calculadora considera a regra sem acordo. Confirme com o seu contador ou sindicato.</p>';
+    if (r.e1.pessoas) html += '<p class="res-txt">Com convenção ou acordo coletivo, as folgas podem ser compensadas em prazo maior que a semana ou o mês, desde que se preservem dois descansos por semana no total, um deles de preferência no domingo. A calculadora não considera essa compensação. Confirme com o seu contador ou sindicato.</p>';
     if (!e.dados && temSalario && e.H > 0) {
       var reg = regime === 'simples' ? 'no Simples Nacional (exceto Anexo IV), com fator 1,29' : regime === 'geral' ? 'no Simples Nacional Anexo IV, no Lucro Presumido ou no Lucro Real, com fator 1,62' : 'entre o fator 1,29 (Simples Nacional, exceto Anexo IV) e o fator 1,62 (Anexo IV, Lucro Presumido ou Lucro Real), porque o regime não foi informado';
-      html += '<p class="res-txt">Os valores em reais incluem os encargos estimados ' + reg + ': 13º, férias com o terço e FGTS' + (regime === 'simples' ? '' : (regime === 'geral' ? ', mais INSS patronal, RAT e terceiros' : '; fora do Simples, também INSS patronal, RAT e terceiros')) + '. Não incluem benefícios, como vale-transporte, alimentação e plano de saúde, nem a multa do FGTS. Consideramos o custo de contratar (seleção, admissão e treinamento) igual a 1 salário. Confirme os valores com o seu contador.</p>';
+      html += '<p class="res-txt">Os valores em reais incluem os encargos estimados ' + reg + ': 13º, férias com o terço e FGTS' + (regime === 'simples' ? '' : (regime === 'geral' ? ', mais INSS patronal, RAT e terceiros' : '; fora do Simples, também INSS patronal, RAT e terceiros')) + '. Não incluem benefícios, como vale-transporte, alimentação e plano de saúde, nem a multa do FGTS. ' + (e.parciais.length ? 'Para contratar (seleção, admissão e treinamento), a conta soma 1 salário inteiro no primeiro mês, também no tempo parcial. No tempo parcial, o salário de cada mês é proporcional às horas contratadas.' : 'Para contratar (seleção, admissão e treinamento), a conta soma 1 salário inteiro por pessoa no primeiro mês.') + ' Confirme os valores com o seu contador.</p>';
     } else if (!e.dados && !temSalario && e.H > 0) {
       html += '<p class="res-txt">Informe o salário médio no primeiro passo para ver os valores em reais de cada caminho e a projeção de 12 meses.</p>';
     }
@@ -822,96 +875,97 @@
   // ───────── respostas rápidas (19/10/2026): 4 perguntas do dono, antes das abas ─────────
   // reais inteiros, arredondados ao real mais próximo ("cerca de R$ 1.613")
   var reaisCerca = function (v) { var a = Math.round(v[0] + 1e-9), b = v.length > 1 ? Math.round(v[1] + 1e-9) : a; return a === b ? reaisInteiros(a) : reaisInteiros(a) + ' a ' + reaisInteiros(b); };
-  var DATA = { e1: 'dezembro de 2026', e2: 'dezembro de 2027' };
-  function textoNaoResolve(g) { return 'Hora extra não resolve: faltam ' + diasTxt(g.faltaDias) + ' de trabalho por semana para ter ' + gente(g.juntas) + ' juntas em todos os dias abertos. Só contratando ou fechando nesses dias.'; }
-  function textoSobra(e) { return e.sobraExtra ? 'As ' + horasTxt(e.sobraExtra) + ' que sobram, resolva com ajuste de horário ou hora extra.' : ''; }
+  // nas respostas rápidas, cada etapa pela data exata (29/10/2026)
+  var DESDE = { e1: 'A partir de 16/12/2026', e2: 'A partir de 16/12/2027' };
+  function textoNaoResolve(g) { return 'Hora extra não resolve: ' + (g.faltaDias === 1 ? 'falta ' : 'faltam ') + diasTxt(g.faltaDias) + ' de trabalho por semana para ter ' + gente(g.juntas) + ' juntas em todos os dias abertos. Só contratando ou fechando nesses dias.'; }
+  function textoSobra(e) { return e.sobraExtra ? (umaHora(e.sobraExtra) ? 'Sobra ' + horasTxt(e.sobraExtra) + ', que fica' : 'Sobram ' + horasTxt(e.sobraExtra) + ', que ficam') + ' com ajuste de horário ou hora extra.' : ''; }
   function respostaContratar(r, c, k) {
-    var e = c[k], tit = 'Em ' + DATA[k] + ', ';
+    var e = c[k], tit = DESDE[k] + ', ';
     if (e.dados) return tit + 'confira os números da equipe e do horário.';
     if (!e.H && !r[k].pessoas) return tit + 'não: o horário de hoje já cabe na regra nova.';
-    if (!e.H) return tit + 'não: basta alternar as folgas (cada pessoa folga num dia diferente).';
-    if (e.ajuste) return tit + 'não: ajuste o horário nos momentos de menos movimento ou redistribua tarefas na equipe.';
+    if (!e.H) return tit + 'não: alternando as folgas, a equipe continua cobrindo o atendimento.';
+    // poucas horas (15/11/2026): coerente com a recomendação "Reorganize a escala antes de cortar horário"
+    if (e.ajuste) return tit + 'ainda não: reorganize a escala antes de cortar horário.' +
+      (e.completo && e.contratar ? ' Se ainda faltar gente, 1 pessoa por ' + horasTxt(e.Hc) + ' por semana custa cerca de ' + reaisCerca(e.contratar) + ' por mês.' : '');
     var partes = [];
     if (e.integrais) partes.push(gente(e.integrais) + ' em tempo integral');
-    e.parciais.forEach(function (p) { partes.push('1\u00a0pessoa de meio período, ' + horasTxt(p.horas) + ' por semana' + (e.comH.length > 1 ? ' (' + esc(p.nome) + ')' : '')); });
-    return tit + 'sim: ' + partes.join(' e ') + (e.sobraExtra ? ', e as ' + horasTxt(e.sobraExtra) + ' que sobram com ajuste de horário ou hora extra' : '') + (e.contratar ? ', cerca de ' + reaisCerca(e.contratar) + ' por mês' : '') + '.';
+    e.parciais.forEach(function (p) { partes.push('1\u00a0pessoa em tempo parcial, ' + horasTxt(p.horas) + ' por semana' + (e.comH.length > 1 ? ' (' + esc(p.nome) + ')' : '')); });
+    return tit + 'sim: ' + partes.join(' e ') + (e.contratar ? ', cerca de ' + reaisCerca(e.contratar) + ' por mês' : '') + '.' + (e.sobraExtra ? ' ' + textoSobra(e) : '');
   }
-  function respostasRapidas(r, c, empresa, alt) {
+  // mesma resposta nas duas etapas, numa frase só (29/10/2026)
+  function contratarDuas(e, pessoas) {
+    if (e.dados) return 'Confira os números da equipe e do horário.';
+    if (!e.H && !pessoas) return 'Não, nas duas etapas: o horário de hoje já cabe na regra nova.';
+    if (!e.H) return 'Não, nas duas etapas. Alternando as folgas, a equipe continua cobrindo o atendimento.';
+    if (e.ajuste) return 'Ainda não, nas duas etapas: reorganize a escala antes de cortar horário.';
+    var partes = [], n = e.integrais + e.parciais.length;
+    if (e.integrais) partes.push((e.integrais === 1 ? 'uma pessoa' : gente(e.integrais)) + ' em tempo integral');
+    e.parciais.forEach(function (q) { partes.push('uma pessoa em tempo parcial (' + horasTxt(q.horas) + ' por semana' + (e.comH.length > 1 ? ', ' + esc(q.nome) : '') + ')'); });
+    var t = partes.join(' e ');
+    return t.charAt(0).toUpperCase() + t.slice(1) + (n === 1 ? ' cobre' : ' cobrem') + ' as duas etapas' + (e.contratar ? ', por cerca de ' + reaisCerca(e.contratar) + ' por mês' : '') + '.' + (e.sobraExtra ? ' ' + textoSobra(e) : '');
+  }
+  function respostasRapidas(r, c, empresa) {
     var Y1 = r.e1.horas, Y2 = r.e2.horas, p = r.e1.pessoas;
-    // a) trabalhar menos
+    // a) uma frase por etapa, cada uma comparando com hoje; com zero, a frase diz que as horas cabem (29/10/2026)
     var a = !Y1 && !Y2 ? (p ? 'Não. As horas cabem na regra nova. Muda a folga: ' + gente(p) + (p === 1 ? ' passa' : ' passam') + ' a ter 2 folgas por semana.' : 'Não. O horário de hoje já cabe na regra nova.')
-      : !Y1 ? 'Em dezembro de 2026, não: as horas cabem na regra nova' + (p ? ' e muda só a folga' : '') + '. Em dezembro de 2027, sim: ' + horasTxt(Y2) + ' de trabalho a menos por semana, somando a equipe.'
-      : !Y2 ? 'Sim: ' + horasTxt(Y1) + ' de trabalho a menos por semana em dezembro de 2026, somando a equipe. Em dezembro de 2027, nada mais muda.'
-      : 'Sim: ' + horasTxt(Y1) + ' de trabalho a menos por semana em dezembro de 2026 e ' + horasTxt(Y2) + ' a menos em dezembro de 2027, somando a equipe.';
-    if (alt && alt.r.e1.horas !== Y1) a += ' Se a convenção da sua categoria permitir 8h24 por dia, em dezembro de 2026 são ' + horasTxt(alt.r.e1.horas) + ' a menos.';
+      : 'Sim. ' + DESDE.e1 + ', ' + (Y1 ? 'a equipe trabalha, no total, ' + horasTxt(Y1) + ' a menos por semana' : 'as horas da equipe cabem na regra nova' + (p ? ' e muda só a folga' : '')) + '. ' +
+        DESDE.e2 + ', ' + (Y2 ? horasTxt(Y2) + ' a menos' + (Y1 ? '' : ' por semana, no total') : 'nada mais muda') + '.';
     // b) gente para atender
     var comCob = r.e1.linhas.filter(function (l) { return l.cobertura; }), b;
-    if (!comCob.length) b = 'Para saber, informe quantas pessoas precisam trabalhar juntas no primeiro passo.';
+    if (!comCob.length) b = '';
     else if (c.e1.dados || c.e2.dados) b = 'Confira os números: ' + textoCobertura(comCob.filter(function (l) { return l.cobertura.status === 'dados'; })[0].cobertura).replace(' Confira os números.', '');
     else {
       var abaixo = comCob.filter(function (l) { return l.cobertura.status === 'abaixo'; })[0];
       var h1 = c.e1.Hc, h2 = c.e2.Hc;
       var falta = !h1 && !h2 ? 'Sim, se as folgas forem alternadas (cada pessoa folga num dia diferente).'
-        : h1 && h2 ? 'Em dezembro de 2026, faltam ' + horasTxt(h1) + ' por semana; em dezembro de 2027, ' + horasTxt(h2) + '.'
-        : h1 ? 'Em dezembro de 2026, faltam ' + horasTxt(h1) + ' por semana. Em dezembro de 2027, nenhuma hora falta.'
-        : 'Em dezembro de 2026, sim. Em dezembro de 2027, faltam ' + horasTxt(h2) + ' por semana.';
+        : h1 && h2 ? DESDE.e1 + ', ' + faltamTxt(h1) + ' por semana. ' + DESDE.e2 + ', ' + horasTxt(h2) + '.'
+        : h1 ? DESDE.e1 + ', ' + faltamTxt(h1) + ' por semana. ' + DESDE.e2 + ', nenhuma hora falta.'
+        : DESDE.e1 + ', sim. ' + DESDE.e2 + ', ' + faltamTxt(h2) + ' por semana.';
       b = (abaixo ? 'Hoje a equipe já não preenche todo o horário com ' + gente(abaixo.cobertura.s) + ' juntas, então a conta compara com o que ela faz hoje. ' : '') + falta;
     }
     // c) contratar
-    var cc = respostaContratar(r, c, 'e1') + ' ' + respostaContratar(r, c, 'e2');
-    // d) hora extra: a data com mais horas a resolver
-    var k = c.e2.Hc >= c.e1.Hc ? 'e2' : 'e1', e = c[k], d;
-    if (!c.e1.H && !c.e2.H) d = 'Não vai precisar.';
-    else if (e.dados) d = 'Confira os números da equipe e do horário.';
-    else if (e.semExtra) d = textoNaoResolve(e.semExtra);
-    else {
+    var sem = function (t) { return t.replace(/^A partir de 16\/12\/202[67], /, ''); };
+    var cc = sem(respostaContratar(r, c, 'e1')) === sem(respostaContratar(r, c, 'e2')) ? contratarDuas(c.e1, r.e1.pessoas) : respostaContratar(r, c, 'e1') + ' ' + respostaContratar(r, c, 'e2');
+    // d) hora extra: uma frase quando as duas etapas dão a mesma resposta; senão, uma por etapa (29/10/2026)
+    var extra = function (k) {
+      var e = c[k];
+      if (!e.H) return 'não vai precisar.';
+      if (e.dados) return 'confira os números da equipe e do horário.';
+      if (e.semExtra) { var t = textoNaoResolve(e.semExtra); return t.charAt(0).toLowerCase() + t.slice(1); }
       var x = Math.max.apply(null, e.grupos.filter(function (g) { return g.H > 0; }).map(function (g) { return Math.round(g.extrasPorPessoa * 10) / 10; }));
-      d = 'Em ' + DATA[k] + ', cada pessoa faria ' + horasTxt(x) + ' extras por semana' + (e.extra ? ', cerca de ' + reaisCerca(e.extra) + ' por mês' : '') + '.' +
+      return 'cada pessoa faria ' + extrasTxt(x) + ' por semana' + (e.extra ? ', cerca de ' + reaisCerca(e.extra) + ' por mês' : '') + '.' +
         (e.excede.length ? ' Só com hora extra não dá: o limite é de 2\u00a0horas extras por dia.' : '') +
         (e.completo && e.virada ? ' ' + fraseVirada(vista(c, k)) : '');
-    }
+    };
+    var d;
+    if (!c.e1.H && !c.e2.H) d = 'Não vai precisar em nenhuma das duas etapas.';
+    else if (extra('e1') === extra('e2')) d = 'Nas duas etapas, ' + extra('e1');
+    else d = DESDE.e1 + ', ' + extra('e1') + ' ' + DESDE.e2 + ', ' + extra('e2');
     var q = function (pergunta, resposta) { return '<div class="resp-item"><dt>' + pergunta + '</dt><dd>' + resposta + '</dd></div>'; };
     return '<h3 id="resp-tit">Respostas rápidas</h3><dl class="resp-lista">' +
-      q('Minha equipe vai trabalhar menos?', a) + q('Vou ter gente para atender?', b) + q('Preciso contratar? Quantas pessoas?', cc) + q('E se eu pagar hora extra?', d) + '</dl>';
+      q('Minha equipe vai trabalhar menos?', a) + (b ? q('Vou ter gente para atender?', b) : '') + q('Preciso contratar? Quantas pessoas?', cc) + q('E se eu pagar hora extra?', d) + '</dl>';
   }
   var vista = function (o, k) { var v = {}; for (var x in o) v[x] = o[x]; v.e1 = o[k]; return v; };
-  var ETAPA_TIT = { e1: 'Em dezembro de 2026 (até 40 horas por semana)', e2: 'Em dezembro de 2027 (até 40 horas por semana)' };
-  function painel(r, c, k, regime, extra, conv, alt) {
+  var ETAPA_TIT = { e1: 'Em dezembro de 2026 (até 42 horas por semana)', e2: 'Em dezembro de 2027 (até 40 horas por semana)' };
+  function painel(r, c, k, regime, extra) {
     var rv = vista(r, k), cv = vista(c, k);
     var temGraf = !cv.e1.dados && cv.e1.H > 0 && cv.e1.completo && !cv.e1.semExtra;
-    var tit = k === 'e1' ? (conv === 'sim' ? 'Em dezembro de 2026 (até 42 horas por semana, com a convenção)' : 'Em dezembro de 2026 (até 40 horas por semana, sem convenção que permita 8h24 por dia)') : ETAPA_TIT[k];
+    var tit = ETAPA_TIT[k];
+    // a regra de cada etapa já está na premissa acima das abas (sem a nota do cenário, que existia por causa da convenção)
     return '<h3 class="pane-tit">' + tit + '</h3>' +
-      '<p class="cen-nota">' + (k === 'e2' ? 'Em dezembro de 2027, até 8 horas por dia e 40 horas por semana para todos.'
-        : conv === 'sim' ? 'Cenário com a convenção ou acordo coletivo que permite até 8h24 por dia (42 horas em 5 dias).'
-        : conv === 'nao' ? 'Cenário sem convenção que permita 8h24 por dia: até 8 horas por dia (40 horas em 5 dias).'
-        : 'Referência principal: sem convenção que permita 8h24 por dia (até 40 horas em 5 dias). Mais abaixo, o cenário com a convenção.') + '</p>' +
       '<section class="rec" aria-label="Recomendação">' + blocoRecomendacao(rv, cv, extra) + '</section>' +
       '<div class="res-resumo" aria-label="Resumo">' + blocoResumo(rv, cv, k) + '</div>' +
       '<section class="r-card"><div class="r-cab"><h3>Os caminhos, lado a lado</h3><p class="r-sub">' + subCaminhos(cv, regime) + '</p></div>' + blocoCaminhos(rv, cv, k) + '</section>' +
       '<div class="r-duas">' + (temGraf ? '<section class="r-card r-graf">' + grafico(cv) + '</section>' : '') +
-      '<div class="r-grupos' + (temGraf ? '' : ' sozinho') + '">' + blocoGrupos(r, k) + '</div></div>' +
-      (k === 'e1' && alt ? blocoCenarios(r, c, alt) : '');
+      '<div class="r-grupos' + (temGraf ? '' : ' sozinho') + '">' + blocoGrupos(r, k) + '</div></div>';
   }
-  // "Não sei": os dois cenários de dez. 2026 lado a lado (sem convenção, a referência; com a convenção, a alternativa)
-  function blocoCenarios(r, c, alt) {
-    var col = function (rr, cc, tag, titulo) {
-      var e = cc.e1, rv = vista(rr, 'e1'), cv = vista(cc, 'e1');
-      var linhas = ['<li><span class="etq">Horas de trabalho a menos por semana:</span> ' + horasTxt(rr.e1.horas) + '</li>',
-        '<li><span class="etq">Horas a resolver por semana:</span> ' + (e.Hc ? horasTxt(e.Hc) : 'nenhuma') + '</li>',
-        '<li><span class="etq">Recomendação:</span> ' + tituloRecomendacao(rv, cv) + '</li>'];
-      if (e.H > 0 && e.contratar) linhas.push('<li><span class="etq">Contratar:</span> ' + faixa(e.contratar) + ' por mês</li>');
-      if (e.H > 0 && e.extra && !e.semExtra) linhas.push('<li><span class="etq">Hora extra:</span> ' + faixa(e.extra) + ' por mês</li>');
-      if (e.H > 0 && e.completo && e.virada && !e.semExtra) linhas.push('<li>' + fraseVirada(cv) + '</li>');
-      return '<div class="cen-col' + (tag ? ' principal' : '') + '">' + (tag ? '<span class="cam-tag ind">Referência principal</span>' : '<span class="cam-tag">Alternativa</span>') +
-        '<h4 class="cam-tit">' + titulo + '</h4><ul>' + linhas.join('') + '</ul></div>';
-    };
-    return '<section class="r-card cenarios" aria-labelledby="cen-tit"><h3 id="cen-tit">Dezembro de 2026: os dois cenários</h3>' +
-      '<p class="res-txt">A referência principal é a regra geral, de 8 horas por dia. As 42 horas em 5 dias são exceção e dependem da convenção coletiva da sua categoria.</p>' +
-      '<div class="cen-grade">' + col(r, c, true, 'Sem convenção que permita 8h24 por dia') + col(alt.r, alt.c, false, 'Se a convenção permitir 8h24 por dia') + '</div></section>';
-  }
-  function linhaEtapas(c) {
-    var t = function (q) { return q.dados ? 'confira os números' : q.Hc ? 'faltam ' + horasTxt(q.Hc) + ' por semana' : 'nenhuma hora falta'; };
-    return 'Em dezembro de 2026, ' + t(c.e1) + '. Em dezembro de 2027, ' + t(c.e2) + '.';
+  // horas que a equipe passa a trabalhar a menos por semana em cada etapa (11/11/2026), sem dizer "0 horas"
+  function linhaEtapas(r) {
+    var x = r.e1.horas, y = r.e2.horas, frase = 'A equipe passa a trabalhar ';
+    if (!x && !y) return 'Pelos dados informados, a equipe não precisa trabalhar menos horas em nenhuma das duas etapas.';
+    if (x === y) return frase + horasTxt(x) + ' a menos por semana nas duas etapas.';
+    if (!x) return frase + horasTxt(y) + ' a menos por semana a partir de 16/12/2027.';
+    return frase + horasTxt(x) + ' a menos por semana a partir de 16/12/2026 e ' + horasTxt(y) + ' a menos a partir de 16/12/2027.';
   }
   function abrirAba(k, foco) {
     ['e1', 'e2'].forEach(function (x) {
@@ -924,26 +978,24 @@
   }
   function mostrarResultado(grupos, empresa) {
     var regime = ($('emp-regime') || {}).value || '';
-    var conv = empresa.convencao || 'naosei';
-    var base = {}; for (var x in empresa) base[x] = empresa[x];
-    base.convencao = conv === 'sim' ? 'sim' : 'nao';
-    var r = calcular(grupos, base), c = custos(r, regime);
-    var alt = null;
-    if (conv === 'naosei') { var b2 = {}; for (var y in base) b2[y] = base[y]; b2.convencao = 'sim'; var rs = calcular(grupos, b2); alt = { r: rs, c: custos(rs, regime) }; }
-    resultado = { empresa: empresa, funcoes: grupos, r: r, c: c, regime: regime, conv: conv, alt: alt };
-    var planejar = c.e1.ajuste && c.e2.H > 0 && !c.e2.ajuste && !c.e2.dados ? 'Planeje a contratação até dezembro de 2027, quando faltam ' + horasTxt(c.e2.Hc) + ' por semana.' : '';
-    $('pane-e1').innerHTML = painel(r, c, 'e1', regime, planejar, conv, alt);
+    var r = calcular(grupos, empresa), c = custos(r, regime);
+    resultado = { empresa: empresa, funcoes: grupos, r: r, c: c, regime: regime };
+    $('pane-e1').innerHTML = painel(r, c, 'e1', regime, segundaEtapa(c));
     $('pane-e2').innerHTML = painel(r, c, 'e2', regime, '');
-    $('res-linha').textContent = linhaEtapas(c);
-    $('res-respostas').innerHTML = respostasRapidas(r, c, empresa, alt);
+    $('res-linha').textContent = linhaEtapas(r);
+    $('res-respostas').innerHTML = respostasRapidas(r, c, empresa);
     $('res-muda').innerHTML = blocoMuda(r);
     $('res-olhar').innerHTML = blocoOlhar(r, empresa);
     $('res-custo').innerHTML = blocoCusto(r, c, regime);
     $('res-data').textContent = new Date().toLocaleDateString('pt-BR');
+    $('po-etapas').innerHTML = ['e1', 'e2'].map(function (k) {
+      var p = $('pane-' + k), tit = p.querySelector('.pane-tit'), rt = p.querySelector('.rec-tit'), tx = p.querySelector('.rec-txt');
+      return '<div class="po-etapa"><h3>' + esc(tit ? tit.textContent : '') + '</h3><p><strong>' + esc(rt ? rt.textContent : '') + '.</strong>' + (tx ? ' ' + esc(tx.textContent) : '') + '</p></div>';
+    }).join('');
     // eventos dos botões da recomendação (montados agora)
     document.querySelectorAll('.etapa-pane .rec a[data-evento]').forEach(function (a) { a.addEventListener('click', function () { ev(a.getAttribute('data-evento'), { transport_type: 'beacon' }); }); });
     // chamada: WhatsApp com o resumo (sem dados pessoais)
-    var msg = 'Olá, Daniela Matos! Usei a calculadora da escala 6x1 e quero ajuda para montar a nova escala.' +
+    var msg = 'Olá, Daniela! Usei a calculadora da escala 6x1 e quero ajuda para montar a nova escala.' +
       '\nPessoas com menos horas ou uma folga a mais: ' + r.e1.pessoas + '\nHoras de trabalho que deixam de existir por semana: ' + num(r.e1.horas) + ' em dez. 2026 e ' + num(r.e2.horas) + ' em dez. 2027';
     $('cta-agendar').href = 'https://wa.me/5577981640599?text=' + encodeURIComponent(msg);
     irPasso(3);
@@ -952,8 +1004,28 @@
   }
 
 
+  // ───────── justificado no celular (13/11/2026): nesta página o corpo de texto é justificado também abaixo de 600 px ─────────
+  // O js/alinhamento.js (comum ao site) só trabalha a partir de 600 px; abaixo disso, este trecho faz o mesmo nesta página:
+  // parágrafo curto (menos de 120 caracteres) fica à esquerda, e volta a justificar se o texto crescer.
+  var curtosAgendado = false;
+  function curtosCelular() {
+    curtosAgendado = false;
+    if (!document.documentElement.hasAttribute('data-justifica-celular') || !(window.matchMedia && window.matchMedia('(max-width: 599px)').matches)) return;
+    document.querySelectorAll('body *:not(script):not(style)').forEach(function (e) {
+      var marcado = e.getAttribute('data-curto') === '1';
+      if (!marcado && getComputedStyle(e).textAlign !== 'justify') return;
+      var n = (e.textContent || '').replace(/\s+/g, ' ').trim().length;
+      if (n > 0 && n < 120) { if (!marcado) { e.style.textAlign = 'left'; e.setAttribute('data-curto', '1'); } }
+      else if (marcado) { e.style.textAlign = ''; e.removeAttribute('data-curto'); }
+    });
+  }
+  function agendarCurtos() { if (!curtosAgendado) { curtosAgendado = true; requestAnimationFrame(curtosCelular); } }
+
   // ───────── ligações ─────────
-  document.addEventListener('DOMContentLoaded', function () {
+  if (!EM_NODE) document.addEventListener('DOMContentLoaded', function () {
+    agendarCurtos();
+    new MutationObserver(agendarCurtos).observe(document.body, { childList: true, subtree: true, characterData: true });
+    window.addEventListener('resize', agendarCurtos);
     var calc = $('calculadora');
     if (!calc) return;
     calc.addEventListener('input', marcarInicio, { once: true });
@@ -967,7 +1039,7 @@
     $('passo-2').addEventListener('change', function (e) { if (e.target.closest('.horarios')) calcularHorarios(); });
     calc.addEventListener('input', atualizarPrevia);
     var dAte = diasAteEtapa();
-    if ($('contagem-dias')) { if (dAte > 0) $('contagem-dias').textContent = dAte; else $('contagem-dias').parentNode.textContent = '2 folgas · já valendo'; }
+    if ($('contagem-dias')) { if (dAte > 1) $('contagem-dias').textContent = dAte; else if (dAte === 1) $('contagem').textContent = 'Falta 1 dia para a primeira etapa da nova jornada.'; else $('contagem').textContent = 'A primeira etapa da nova jornada vale desde 16/12/2026.'; }
     // botão de continuar da barra do celular: o mesmo do passo aberto
     document.querySelectorAll('.res-abas [role=tab]').forEach(function (t) {
       t.addEventListener('click', function () { abrirAba(t.getAttribute('data-etapa'), false); });
@@ -998,4 +1070,7 @@
     document.querySelectorAll('a[data-evento]').forEach(function (a) { a.addEventListener('click', function () { ev(a.getAttribute('data-evento'), { transport_type: 'beacon' }); }); });
     window.Escala6x1 = { calcular: calcular, irPasso: irPasso, novaFuncao: novaFuncao };
   });
+  if (EM_NODE) module.exports = { calcular: calcular, etapa: etapa, custos: custos, vista: vista, tituloRecomendacao: tituloRecomendacao,
+    blocoRecomendacao: blocoRecomendacao, blocoCaminhos: blocoCaminhos, custoPorHora: custoPorHora, contratarCompensa: contratarCompensa, textoAjuste: textoAjuste, segundaEtapa: segundaEtapa,
+    respostasRapidas: respostasRapidas, blocoResumo: blocoResumo };
 })();

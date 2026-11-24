@@ -1,193 +1,111 @@
-// Testes do cálculo da calculadora da escala 6x1 (node --test).
-// Os números esperados foram conferidos à mão com as fórmulas descritas no README.
+// Testes do cálculo da calculadora da escala 6x1 (node --test tests/calculadora.test.js).
+// Etapa 1 (16/12/2026 a 15/12/2027), pela liminar do STF de 12/11/2026, que ainda depende de referendo do plenário: 42 h
+// para todos, em 5 dias de até 8h24; com menos de 5 dias de trabalho, o teto diário continua 8 h. Etapa 2 (desde
+// 16/12/2027): 40 h, 8 h por dia. Sem a pergunta da convenção coletiva (rascunho de 13/11/2026).
+// Custo de contratar (regra de 11/11/2026): o salário do tempo parcial é proporcional às horas sobre as
+// horas semanais novas do grupo, a mesma base do valor da hora extra (CLT, art. 58-A, § 1º); o custo único de contratação
+// (seleção, admissão e treinamento, igual a 1 salário) fica inteiro também no tempo parcial.
+// Loja fictícia "Moda Aurora" no Simples Nacional (fator 1,29), salário médio de R$ 2.500.
 const { test, describe } = require('node:test');
 const assert = require('node:assert/strict');
-const { calcular, custos } = require('../js/escala-6x1.js');
+const path = require('path');
+const { calcular, custos } = require(path.join(__dirname, '..', 'js', 'escala-6x1.js'));
 
-// Loja do caso F: 5 vendedoras, 6 dias por semana, 44 horas, salário de R$ 2.500, Simples Nacional.
-// A loja abre 54 horas por semana em 6 dias (segunda a sexta das 8h às 18h e sábado das 8h às 12h).
-const LOJA = [{ nome: 'Vendas', pessoas: 5, dias: 6, horas: 44, salario: 2500 }];
-const ABERTURA = { dias: 6, horas: 54 };
-
-// Mesmo caminho da página: "Não sei" usa o cenário sem convenção como principal e calcula também o cenário com convenção.
-function simular(grupos, empresa, convencao, regime) {
-  const principal = Object.assign({}, empresa, { convencao: convencao === 'sim' ? 'sim' : 'nao' });
-  const r = calcular(grupos, principal), c = custos(r, regime);
-  let alt = null;
-  if (convencao === 'naosei') {
-    const rs = calcular(grupos, Object.assign({}, principal, { convencao: 'sim' }));
-    alt = { r: rs, c: custos(rs, regime) };
-  }
-  return { r, c, alt };
-}
-
+const SAL = 2500, FATOR = 1.29;
 const perto = (real, esperado, msg) => assert.ok(Math.abs(real - esperado) < 0.01, `${msg}: ${real} (esperado ${esperado})`);
+// hora extra: H × 4,33 × (salário ÷ (horas novas × 5)) × 1,5 × 7/6 × fator
+const horaExtra = (H, novas) => H * 4.33 * (SAL / (novas * 5)) * 1.5 * (7 / 6) * FATOR;
+// mês de virada: primeiro mês em que o acumulado de contratar (com o custo único) fica menor ou igual ao da hora extra
+const virada = (mensal, unico, extra) => { for (let m = 1; m <= 12; m++) if (mensal * m + unico <= extra * m + 1e-9) return m; return null; };
+const simular = (pessoas, horas, dias = 6) => {
+  const r = calcular([{ nome: 'Vendas', pessoas, dias, horas, salario: SAL }], { dias: 6, horas: 54 });
+  return { r, c: custos(r, 'simples') };
+};
 
-describe('caso F: convenção permite 8h24 por dia (Sim)', () => {
-  const { r, c } = simular(LOJA, ABERTURA, 'sim', 'simples');
-
-  test('dez. 2026: até 42 horas em 5 dias, 10 horas a menos por semana', () => {
-    assert.equal(r.e1.limite, 42);
-    assert.equal(r.e1.linhas[0].horasNovas, 42); // mínimo(44, 42, 5 × 8 + 2)
-    assert.equal(r.e1.pessoas, 5);
-    assert.equal(r.e1.horas, 10); // (44 − 42) × 5
-    assert.equal(c.e1.Hc, 10);
-  });
-
-  test('dez. 2026: 10 horas é menos de 12, então o indicado é ajustar o horário', () => {
-    assert.equal(c.e1.ajuste, true);
-  });
-
-  test('dez. 2026: custos de contratar e de hora extra', () => {
-    // tempo parcial de 10 h: 2.500 × 10 / 42 × 1,29
-    perto(c.e1.contratar[0], 2500 * 10 / 42 * 1.29, 'contratar');
-    // hora = 2.500 / (42 × 5); 10 h × 4,33 × hora × 1,5 × 7/6 × 1,29
-    perto(c.e1.extra[0], 10 * 4.33 * (2500 / 210) * 1.5 * (7 / 6) * 1.29, 'hora extra');
-    perto(c.e1.extra[0], 1163.69, 'hora extra arredondada');
-  });
-
-  test('dez. 2027: 40 horas para todos, 20 horas a menos por semana', () => {
-    assert.equal(r.e2.limite, 40);
-    assert.equal(r.e2.horas, 20);
-    assert.equal(c.e2.Hc, 20);
-    assert.equal(c.e2.ajuste, false);
+describe('aceitação: horas novas de um grupo de 44 horas', () => {
+  test('a) 6 dias, etapa 1: 42 horas', () => assert.equal(simular(5, 44, 6).r.e1.linhas[0].horasNovas, 42));
+  test('b) 5 dias, etapa 1: 42 horas', () => assert.equal(simular(5, 44, 5).r.e1.linhas[0].horasNovas, 42));
+  test('c) 4 dias, etapa 1: 32 horas (teto de 8 h por dia)', () => assert.equal(simular(5, 44, 4).r.e1.linhas[0].horasNovas, 32));
+  test('d) 6 dias, etapa 2: 40 horas', () => assert.equal(simular(5, 44, 6).r.e2.linhas[0].horasNovas, 40));
+  test('jornada integral (J) para contar contratações: 42 na etapa 1, 40 na etapa 2', () => {
+    const { r } = simular(5, 44); assert.equal(r.e1.limite, 42); assert.equal(r.e2.limite, 40);
   });
 });
 
-describe('caso F: convenção não permite (Não)', () => {
-  const { r, c } = simular(LOJA, ABERTURA, 'nao', 'simples');
-
-  test('dez. 2026: 8 horas por dia, ou seja, 40 horas em 5 dias', () => {
-    assert.equal(r.e1.limite, 40);
-    assert.equal(r.e1.linhas[0].horasNovas, 40); // mínimo(44, 42, 5 × 8)
-    assert.equal(r.e1.horas, 20);
-    assert.equal(c.e1.Hc, 20);
+describe('Moda Aurora (5 pessoas, 6 dias, 44 horas), etapa 1: 10 horas a cobrir', () => {
+  const { r, c } = simular(5, 44), e = c.e1;
+  test('10 horas a menos por semana, menos de 12: o indicado é ajustar o horário', () => {
+    assert.equal(r.e1.horas, 10); assert.equal(e.Hc, 10); assert.equal(e.ajuste, true);
   });
-
-  test('dez. 2026: 1 pessoa em tempo parcial de 20 horas, R$ 1.612,50 por mês', () => {
-    assert.equal(c.e1.integrais, 0);
-    assert.deepEqual(c.e1.parciais, [{ nome: 'Vendas', horas: 20 }]);
-    perto(c.e1.contratar[0], 1612.5, 'contratar'); // 2.500 × 20 / 40 × 1,29
-  });
-
-  test('dez. 2026: hora extra de R$ 2.443,74 por mês e virada no mês 4', () => {
-    perto(c.e1.extra[0], 2443.74, 'hora extra'); // 20 × 4,33 × 12,50 × 1,5 × 7/6 × 1,29
-    assert.equal(c.e1.unico, 2500); // custo único de 1 salário por contratação
-    assert.deepEqual(c.e1.virada, [4]); // 1.612,50 × m + 2.500 ≤ 2.443,74 × m a partir de m = 4
-  });
-
-  test('dez. 2027 fica igual a dez. 2026: 20 horas e R$ 1.612,50', () => {
-    assert.equal(r.e2.horas, 20);
-    perto(c.e2.contratar[0], 1612.5, 'contratar');
+  test('tempo parcial de 10 horas sobre 42: R$ 767,86 por mês; hora extra R$ 1.163,69; virada no 7º mês', () => {
+    perto(e.contratar[0], SAL * 10 / 42 * FATOR, 'contratar'); perto(e.contratar[0], 767.86, 'contratar arredondado');
+    perto(e.extra[0], 1163.69, 'hora extra'); perto(e.unico, SAL, 'custo único');
+    assert.equal(e.virada[0], virada(e.contratar[0], SAL, e.extra[0])); assert.equal(e.virada[0], 7);
   });
 });
 
-describe('caso F: convenção desconhecida (Não sei)', () => {
-  const { r, c, alt } = simular(LOJA, ABERTURA, 'naosei', 'simples');
-
-  test('o cenário principal é o sem convenção: 20 horas e 20 horas', () => {
-    assert.equal(r.e1.horas, 20);
-    assert.equal(r.e2.horas, 20);
-    perto(c.e1.contratar[0], 1612.5, 'contratar');
+describe('etapa 2 (40 horas): custos sem mudança', () => {
+  test('jornada cheia, 9 pessoas: 36 horas, 1 pessoa em tempo integral, virada no 3º mês', () => {
+    const e = simular(9, 44).c.e2;
+    assert.equal(e.Hc, 36); assert.equal(e.integrais, 1); assert.equal(e.parciais.length, 0);
+    perto(e.contratar[0], SAL * FATOR, 'contratar'); perto(e.unico, SAL, 'custo único');
+    perto(e.extra[0], horaExtra(36, 40), 'hora extra'); assert.equal(e.virada[0], 3);
   });
-
-  test('o segundo cenário, com convenção, aparece ao lado: 10 horas e 20 horas', () => {
-    assert.ok(alt, 'deveria haver o segundo cenário');
-    assert.equal(alt.r.e1.horas, 10);
-    assert.equal(alt.r.e2.horas, 20);
+  test('Moda Aurora: 20 horas em tempo parcial, R$ 1.612,50, virada no 4º mês', () => {
+    const e = simular(5, 44).c.e2;
+    assert.deepEqual(e.parciais.map(p => p.horas), [20]);
+    perto(e.contratar[0], 1612.50, 'contratar'); perto(e.extra[0], 2443.74, 'hora extra'); perto(e.unico, SAL, 'custo único');
+    assert.equal(e.virada[0], 4);
   });
-
-  test('qualquer valor diferente de "sim" é tratado como sem convenção', () => {
-    const direto = calcular(LOJA, Object.assign({}, ABERTURA, { convencao: 'naosei' }));
-    assert.equal(direto.e1.limite, 40);
-    assert.equal(direto.e1.horas, 20);
+  test('30 horas em tempo parcial (15 pessoas de 42 horas), virada no 3º mês', () => {
+    const e = simular(15, 42).c.e2;
+    assert.deepEqual(e.parciais.map(p => p.horas), [30]);
+    perto(e.contratar[0], SAL * 30 / 40 * FATOR, 'contratar'); assert.equal(e.virada[0], 3);
   });
 });
 
-describe('regime tributário', () => {
-  const r = calcular(LOJA, Object.assign({}, ABERTURA, { convencao: 'nao' }));
-
-  test('fora do Simples (ou Anexo IV) o fator de encargos é 1,62', () => {
-    const c = custos(r, 'geral');
-    assert.deepEqual(c.fator, [1.62]);
-    perto(c.e1.contratar[0], 2500 * 20 / 40 * 1.62, 'contratar');
-  });
-
-  test('"Não sei" mostra a faixa entre 1,29 e 1,62', () => {
-    const c = custos(r, 'naosei');
-    assert.deepEqual(c.fator, [1.29, 1.62]);
-    perto(c.e1.contratar[0], 1612.5, 'mínimo');
-    perto(c.e1.contratar[1], 2025, 'máximo');
-  });
+// O valor da hora tem de ser o mesmo nas duas contas: hora extra (salário ÷ (horas novas × 5)) e tempo parcial
+// (salário × horas ÷ horas novas, por (horas × 5) horas no mês), em cada etapa
+describe('mesmo valor de hora na hora extra e no tempo parcial', () => {
+  for (const [nome, k, novas] of [['etapa 1', 'e1', 42], ['etapa 2', 'e2', 40]]) {
+    test(`${nome}: hora de R$ ${(SAL / (novas * 5)).toFixed(2)}`, () => {
+      const e = simular(5, 44).c[k], parcial = e.parciais[0].horas;
+      const horaDoParcial = e.contratar[0] / FATOR / (parcial * 5);
+      const horaDaExtra = e.extra[0] / (e.H * 4.33 * 1.5 * (7 / 6) * FATOR);
+      perto(horaDoParcial, horaDaExtra, 'hora do tempo parcial igual à da hora extra');
+      perto(horaDoParcial, SAL / (novas * 5), `salário ÷ (${novas} × 5)`);
+    });
+  }
 });
 
-describe('quem não muda e quem muda só pela folga', () => {
-  test('equipe que já faz 5 dias e 40 horas não muda', () => {
-    const r = calcular([{ nome: 'Escritório', pessoas: 3, dias: 5, horas: 40 }], { dias: 5, horas: 45, convencao: 'nao' });
-    assert.equal(r.e1.pessoas, 0);
-    assert.equal(r.e1.horas, 0);
-    assert.equal(r.e1.linhas[0].muda, false);
-  });
-
-  test('6 dias e 36 horas: muda por causa da folga, sem perder horas', () => {
-    const r = calcular([{ nome: 'Caixa', pessoas: 2, dias: 6, horas: 36 }], { dias: 6, horas: 54, convencao: 'nao' });
-    assert.equal(r.e1.linhas[0].muda, true);
-    assert.equal(r.e1.linhas[0].diasNovos, 5);
-    assert.equal(r.e1.horas, 0);
-  });
+// Grupo de 36 horas com salário de R$ 2.500: hora de R$ 13,89 (2.500 ÷ 180) nas duas contas, em cada etapa.
+// Um grupo de 36 horas não perde horas em nenhuma etapa, então o teste confere a fórmula de custo direto, com 20 horas a cobrir.
+describe('grupo de 36 horas: mesmo valor de hora (R$ 13,89) na hora extra e no tempo parcial', () => {
+  const linha = { nome: 'Caixa', pessoas: 5, horas: 36, horasNovas: 36, perda: 20, salario: SAL, cobertura: null, simultaneas: null };
+  const r = { e1: { limite: 42, linhas: [linha] }, e2: { limite: 40, linhas: [linha] } };
+  for (const [nome, k] of [['etapa 1', 'e1'], ['etapa 2', 'e2']]) {
+    test(nome, () => {
+      const e = custos(r, 'simples')[k];
+      assert.deepEqual(e.parciais.map(p => p.horas), [20]);
+      perto(e.contratar[0] / FATOR / (20 * 5), SAL / 180, 'tempo parcial');
+      perto(e.extra[0] / (20 * 4.33 * 1.5 * (7 / 6) * FATOR), SAL / 180, 'hora extra');
+      perto(e.unico, SAL, 'custo único inteiro');
+    });
+  }
 });
 
-describe('cobertura do horário (pessoas ao mesmo tempo)', () => {
-  test('5 vendedoras com 2 ao mesmo tempo cobrem as 54 horas da loja', () => {
-    const grupos = [Object.assign({}, LOJA[0], { simultaneas: 2 })];
-    const { r, c } = simular(grupos, ABERTURA, 'nao', 'simples');
-    assert.equal(r.e1.linhas[0].cobertura.status, 'cobre'); // precisa 108 h; depois da mudança há 5 × 40 = 200 h
-    assert.equal(c.e1.H, 0);
-  });
-
-  test('faltam dias de trabalho: hora extra não resolve', () => {
-    // 2 pessoas, as 2 juntas, loja aberta 6 dias e 40 horas: com 5 dias cada, sobram 2 dias sem a dupla
-    const grupos = [{ nome: 'Dupla', pessoas: 2, dias: 6, horas: 44, simultaneas: 2, salario: 2000 }];
-    const { r, c } = simular(grupos, { dias: 6, horas: 40 }, 'nao', 'simples');
-    const cob = r.e2.linhas[0].cobertura;
-    assert.equal(cob.status, 'falta');
-    assert.equal(cob.faltaDias, 2);
-    assert.ok(c.e2.semExtra, 'deveria marcar que a hora extra não resolve');
-    assert.equal(c.e2.virada, null);
-  });
-
-  test('dados impossíveis travam o resultado', () => {
-    const grupos = [{ nome: 'Grupo', pessoas: 2, dias: 6, horas: 44, simultaneas: 3 }];
-    const { r, c } = simular(grupos, ABERTURA, 'nao', 'simples');
-    assert.equal(r.e1.linhas[0].cobertura.status, 'dados');
-    assert.equal(c.e1.dados, true);
-  });
-});
-
-describe('contratação em pessoas inteiras', () => {
-  const caso = (pessoas) => {
-    // 6 dias e 45 horas: perdem 5 horas cada em dez. 2027 (45 − 40)
-    const { c } = simular([{ nome: 'Equipe', pessoas, dias: 6, horas: 45, salario: 2000 }], ABERTURA, 'nao', 'simples');
-    return c.e2;
-  };
-
-  test('35 horas (acima de 30): 1 pessoa em tempo integral', () => {
-    const e = caso(7);
-    assert.equal(e.Hc, 35);
-    assert.equal(e.integrais, 1);
-    assert.deepEqual(e.parciais, []);
-  });
-
-  test('55 horas: 1 integral e sobra de 15 horas em tempo parcial', () => {
-    const e = caso(11);
-    assert.equal(e.integrais, 1);
-    assert.deepEqual(e.parciais, [{ nome: 'Equipe', horas: 15 }]);
-  });
-
-  test('45 horas: 1 integral e sobra de 5 horas (menos de 12) com ajuste ou hora extra', () => {
-    const e = caso(9);
-    assert.equal(e.integrais, 1);
-    assert.deepEqual(e.parciais, []);
-    assert.equal(e.sobraExtra, 5);
-  });
+// Ateliê: 2 pessoas, 4 dias por semana, 44 horas (11 horas por dia). Com menos de 5 dias, o teto diário é 8 h nas duas
+// etapas: 32 horas depois da mudança, 24 horas em tempo parcial sobre 32.
+describe('Ateliê: 2 pessoas de 44 horas em 4 dias', () => {
+  const r = calcular([{ nome: 'Costura', pessoas: 2, dias: 4, horas: 44, salario: SAL }], { dias: 6, horas: 44 }), c = custos(r, 'simples');
+  for (const k of ['e1', 'e2']) {
+    test(`${k === 'e1' ? 'etapa 1' : 'etapa 2'}: 24 horas em tempo parcial sobre 32 horas`, () => {
+      const e = c[k];
+      assert.equal(r[k].linhas[0].horasNovas, 32);
+      assert.deepEqual(e.parciais.map(p => p.horas), [24]);
+      perto(e.contratar[0], SAL * 24 / 32 * FATOR, 'contratar');
+      perto(e.unico, SAL, 'custo único inteiro');
+      assert.equal(e.virada[0], virada(e.contratar[0], SAL, e.extra[0]));
+    });
+  }
 });
